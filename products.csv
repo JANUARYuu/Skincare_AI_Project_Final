@@ -1,0 +1,8 @@
+Product_ID,Product_Name,Brand,Category,Key_Ingredient,Target_Skin_Type,Price_Range,Konvy_Link
+101,Acne Deep Cleanser,Acne Aid,Cleanser,Salicylic Acid,Oily,Acne,500-1000,https://example.com/konvy/101
+102,Gentle Hydrating Cleanser,CeraVe,Cleanser,Ceramides,Dry,Sensitive,500-1000,https://example.com/konvy/102
+103,10% Niacinamide Serum,The Ordinary,Serum,Niacinamide,All,1000-2000,https://example.com/konvy/103
+104,Benzoyl Peroxide Spot Gel,PanOxyl,Treatment,Benzoyl Peroxide,Acne,500-1000,https://example.com/konvy/104
+105,Water-Gel Moisturizer,Neutrogena,Moisturizer,Hyaluronic Acid,Oily,Combination,500-1000,https://example.com/konvy/105
+106,Intensive Repair Cream,Eucerin,Moisturizer,Urea,Dry,Sensitive,1000-2000,https://example.com/konvy/106
+107,UV Aqua Rich Essence SPF50,Biore,Sunscreen,UV Filters,All,500-1000,https://example.com/konvy/107
