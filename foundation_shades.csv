@@ -99,3 +99,24 @@ Shade_ID,Shade_Name,Brand,Undertone,Depth_Scale,Coverage,Best_For_Type,Konvy_Lin
 206,Tan Spiced Warm,SpiceMix,Warm,6.5,Full,All,https://konvy.com/
 207,Deep Mahogany Neutral,MahoganyFit,Neutral,7.9,Light,Dry,https://konvy.com/
 208,Light Amber Neutral,AmberFit,Neutral,3.9,Medium,Combination,https://konvy.com/
+Shade_ID,Shade_Name,Brand,Undertone,Depth_Scale,Coverage,Best_For_Type,Image_File
+201,Fair Neutral Porcelain,Fenty,Neutral,2.0,Medium,All,foundation_fenty.png
+202,Light Warm Golden,MAC,Warm,3.5,Full,Oily,foundation_mac.png
+203,Medium Tan Cool,NARS,Cool,5.0,Light,Combination,foundation_nars.png
+204,Deep Espresso Neutral,Estee Lauder,Neutral,8.5,Full,Dry,foundation_el.png
+205,Light Cool Pink,Rare Beauty,Cool,2.5,Medium,Sensitive,foundation_rb.png
+206,Tan Warm Peach,L'Oréal,Warm,6.0,Medium,All,foundation_lor.png
+207,Medium Neutral Beige,Maybelline,Neutral,4.5,Full,Oily,foundation_may.png
+208,Fair Pink Cool,Dior,Cool,1.5,Light,Dry,foundation_dior.png
+209,Deep Rich Warm,Bobbi Brown,Warm,7.5,Full,All,foundation_bb.png
+210,Light Warm Yellow,Hourglass,Warm,3.0,Medium,Combination,foundation_hg.png
+211,Medium Golden Neutral,Charlotte Tilbury,Neutral,5.5,Medium,Sensitive,foundation_ct.png
+212,Tan Olive Cool,Urban Decay,Cool,6.5,Full,Oily,foundation_ud.png
+213,Fair Cool Alabaster,Tarte,Cool,1.8,Medium,Dry,foundation_tarte.png
+214,Light Neutral Ivory,IT Cosmetics,Neutral,2.8,Full,All,foundation_it.png
+215,Medium Warm Honey,Anastasia,Warm,4.0,Light,Combination,foundation_an.png
+216,Deep Warm Mocha,Huda Beauty,Warm,8.0,Full,Oily,foundation_huda.png
+217,Tan Neutral Sand,Sephora,Neutral,5.8,Medium,Sensitive,foundation_seph.png
+218,Light Warm Vanilla,Make Up For Ever,Warm,3.2,Full,Dry,foundation_mufe.png
+219,Medium Cool Beige,Clinique,Cool,4.8,Light,Combination,foundation_cli.png
+220,Fair Neutral Shell,ColourPop,Neutral,1.0,Medium,All,foundation_cp.png
