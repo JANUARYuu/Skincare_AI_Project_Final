@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import cv2 # ไลบรารีสำหรับวิเคราะห์ภาพ
+import cv2 
 import os
 
 # ----------------------------------------------------------------------
@@ -335,3 +335,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
