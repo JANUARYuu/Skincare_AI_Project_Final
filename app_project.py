@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import cv2
+import cv2 # ไลบรารีสำหรับวิเคราะห์ภาพ
 import os
 
 # ----------------------------------------------------------------------
@@ -61,14 +61,13 @@ def analyze_skin_from_image(uploaded_file):
     
     # 3. กำหนดความเข้มของผิว (Depth_Scale) โดยใช้ค่า V (Value/Brightness) ของ HSV
     V = avg_hsv[2]
-    # แปลง V (255 -> 0) ให้เป็น Depth_Scale (1.0 -> 10.0)
     depth_scale = 1.0 + (255 - V) / 25.5 
-    depth_scale = np.clip(depth_scale, 1.0, 9.0)
+    depth_scale = np.clip(depth_scale, 1.0, 9.0) # จำกัดผลลัพธ์
     
     # 4. กำหนดโทนสีผิว (Undertone) โดยใช้ค่า BGR
     R, G, B = avg_bgr[2], avg_bgr[1], avg_bgr[0]
 
-    # Warm (R>G>B) หรือ (R+G)/2 > B
+    # Warm (R>G>B)
     if (R > G * 1.05 and G > B * 1.05) or (R + G) / 2 > B * 1.1:
         undertone = 'Warm' 
     # Cool (B>R & B>G)
@@ -81,10 +80,10 @@ def analyze_skin_from_image(uploaded_file):
     # 5. กำหนดประเภทผิว (Skin Type) - (ใช้ Rule-Based จากค่า S และ V)
     S = avg_hsv[1]
     
-    if S < 100 and depth_scale < 5.0: # ผิวสว่างและสีไม่สด (ผิวแห้ง/ขาดน้ำ)
+    if S < 100 and depth_scale < 5.0: # ผิวสว่างและสีไม่สด
         skin_type = 'Dry' 
         acne_severity = 'Low'
-    elif depth_scale > 5.5 and S > 130: # ผิวเข้มและสีสด (ผิวผสม/มัน)
+    elif depth_scale > 5.5 and S > 130: # ผิวเข้มและสีสด
         skin_type = 'Oily'
         acne_severity = 'Moderate'
     else: # ค่ากลาง
@@ -103,7 +102,6 @@ def analyze_skin_from_image(uploaded_file):
 # ----------------------------------------------------------------------
 
 def recommend_skincare(skin_analysis_results, db):
-    """กำหนดกฎเกณฑ์การแนะนำผลิตภัณฑ์บำรุงผิว"""
     skin_type = skin_analysis_results['Skin_Type']
     acne_severity = skin_analysis_results['Acne_Severity']
     recommendations = {}
@@ -145,9 +143,7 @@ def recommend_foundation(undertone, depth_scale, db):
     if db.empty:
         return pd.DataFrame()
         
-    # กรองข้อมูลให้เหลือเฉพาะแถวที่ Depth_Scale เป็นตัวเลข (ไม่เป็น NaN)
     filtered_df = db[db['Depth_Scale'].notna()]
-    
     filtered_df = filtered_df[filtered_df['Undertone'] == undertone]
     
     if filtered_df.empty:
@@ -156,7 +152,6 @@ def recommend_foundation(undertone, depth_scale, db):
     if filtered_df.empty:
         return pd.DataFrame() 
 
-    # คำนวณค่าความแตกต่าง (Depth_Scale ถูกรับรองว่าเป็น float แล้ว)
     filtered_df['Depth_Diff'] = np.abs(filtered_df['Depth_Scale'] - depth_scale)
     
     return filtered_df.sort_values(by='Depth_Diff').head(3).drop(columns=['Depth_Diff']).reset_index(drop=True)
@@ -205,7 +200,7 @@ def recommend_makeup(undertone, db):
 
 def main():
     if PRODUCT_DB.empty or SHADE_DB.empty or TONE_DB.empty or MAKEUP_DB.empty:
-        st.warning("❗ โปรดตรวจสอบว่าไฟล์ฐานข้อมูลทั้งหมด (products.csv, foundation_shades.csv, skin_tones.csv, makeup_products.csv) พร้อมใช้งานและมีข้อมูล")
+        st.warning("❗ โปรดตรวจสอบว่าไฟล์ฐานข้อมูลทั้งหมดพร้อมใช้งานและมีข้อมูล")
         return
 
     st.title("🔬 AI Skincare & Makeup Advisor: Image Analysis Project")
@@ -213,13 +208,12 @@ def main():
     st.markdown("---")
     
     st.subheader("อัปโหลดรูปภาพใบหน้าของคุณ")
-    st.info("💡 **เคล็ดลับ:** ลองใช้รูปภาพใบหน้าในสภาพแสงที่แตกต่างกัน (สว่าง/มืด) เพื่อดูผลลัพธ์ Depth และ Tone ที่เปลี่ยนไป!")
+    st.info("💡 **เคล็ดลับ:** ผลลัพธ์จะเปลี่ยนไปตามความสว่างของภาพ (Depth) และโทนสีหลัก (Undertone) ในภาพถ่าย")
     
     uploaded_file = st.file_uploader("เลือกไฟล์รูปภาพ (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
         
-        # 1. แสดงภาพและผลการวิเคราะห์
         col1, col2 = st.columns([1, 1])
 
         with col1:
@@ -247,7 +241,7 @@ def main():
         # 2. แสดงผลการแนะนำ Skincare
         st.header("🧴 2. ผลิตภัณฑ์บำรุงผิวที่แนะนำ (Skincare)")
         skincare_recommendations = recommend_skincare(results, PRODUCT_DB)
-        # ... (ส่วนแสดงผล Skincare เหมือนเดิม)
+
         if not skincare_recommendations:
             st.warning("ไม่พบผลิตภัณฑ์บำรุงผิวที่ตรงกับเงื่อนไขในฐานข้อมูล 'products.csv'.")
         else:
@@ -279,7 +273,7 @@ def main():
         foundation_recommendations = recommend_foundation(
             results['Undertone'], results['Depth_Scale'], SHADE_DB
         )
-        # ... (ส่วนแสดงผล Foundation เหมือนเดิม)
+
         if not foundation_recommendations.empty:
             st.markdown(f"**เฉดสีที่ใกล้เคียงที่สุด** สำหรับโทน **{results['Undertone']}** และผิวระดับ **{results['Depth_Scale']:.2f}**:")
             
@@ -314,7 +308,7 @@ def main():
             makeup_recommendations = recommend_makeup(
                 results['Undertone'], MAKEUP_DB
             )
-            # ... (ส่วนแสดงผล Makeup เหมือนเดิม)
+
             if not makeup_recommendations:
                 st.warning("ไม่พบผลิตภัณฑ์เมคอัพที่ตรงกับเงื่อนไขในฐานข้อมูล")
             else:
