@@ -1,0 +1,13 @@
+Product_ID,Product_Name,Brand,Category,Tone_Type,Key_Feature,Price_Range,Image_File
+301,Loose Powder Translucent,Laura Mercier,Powder,All,"คุมมัน, โปร่งแสง",High,powder_lm.png
+302,Cream Blush #Coral,4U2,Blush,Warm,"สีพีชส้ม, เนื้อครีม",Low,blush_4u2_c.png
+303,Velvet Matte Lip #Ruby Red,MAC,Lip,Cool,"สีแดงก่ำ, โทนน้ำเงิน",Medium,lip_mac_r.png
+304,Bronzer #Hoola,Benefit,Contour,Neutral,"เฉดดิ้งน้ำตาลกลาง, เนื้อแมตต์",High,contour_ben.png
+305,Highlighter #Champagne Pop,Becca,Highlight,Warm,"สีทองแชมเปญ, ฉ่ำวาว",Medium,highlight_b.png
+306,Air Matte Blush #Rose,Nars,Blush,Cool,"สีชมพูกุหลาบ, เนื้อบางเบา",High,blush_nars_r.png
+307,Fixing Spray,Urban Decay,Setting,All,"ล็อคเมคอัพ, คุมมัน",High,setting_ud.png
+308,Eyebrow Pencil,Browit,Eyebrow,All,"หัวเล็ก, สีธรรมชาติ",Low,eyebrow_brw.png
+309,Lipstick #Nude Peach,Maybelline,Lip,Neutral,"สีนู้ดพีช, เนื้อซาติน",Low,lip_may_n.png
+310,Cream Blush #Soft Rose,Rare Beauty,Blush,Cool,"สีชมพูอ่อน, เนื้อลิควิด",Medium,blush_rb_p.png
+311,Baked Highlighter #Gold,Bobbi Brown,Highlight,Warm,"สีทองเข้ม, ชิมเมอร์ละเอียด",High,highlight_bb.png
+312,Contour Stick #Light,Fenty,Contour,Cool,"เฉดดิ้งเทาอ่อน, เนื้อครีม",Medium,contour_fen.png
