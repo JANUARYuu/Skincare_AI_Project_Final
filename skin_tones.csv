@@ -1,0 +1,11 @@
+Tone_ID,Tone_Name,Depth_Scale,Undertone,Common_Range
+1,Fair Cool,1.5,Cool,"Very Light, tends to burn easily"
+2,Fair Neutral,2.0,Neutral,"Lightest skin, burns easily"
+3,Light Warm,3.0,Warm,"Light skin with yellow undertones"
+4,Medium Neutral,4.5,Neutral,"Typical Asian skin tone, balanced"
+5,Medium Tan Warm,5.5,Warm,"Slightly tanned, golden undertones"
+6,Tan Olive,6.5,Neutral,"Olive skin, rarely burns"
+7,Deep Warm,7.5,Warm,"Darker skin, rich golden undertones"
+8,Deep Cool,8.5,Cool,"Very dark skin, blue/red undertones"
+9,Deep Neutral,9.0,Neutral,"Darkest skin, balanced undertones"
+10,Light Neutral,2.5,Neutral,"Lightest Asian skin"
