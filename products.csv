@@ -1,8 +1,110 @@
 Product_ID,Product_Name,Brand,Category,Key_Ingredient,Target_Skin_Type,Price_Range,Konvy_Link
-101,Acne Deep Cleanser,Acne Aid,Cleanser,Salicylic Acid,Oily,Acne,500-1000,https://example.com/konvy/101
-102,Gentle Hydrating Cleanser,CeraVe,Cleanser,Ceramides,Dry,Sensitive,500-1000,https://example.com/konvy/102
-103,10% Niacinamide Serum,The Ordinary,Serum,Niacinamide,All,1000-2000,https://example.com/konvy/103
-104,Benzoyl Peroxide Spot Gel,PanOxyl,Treatment,Benzoyl Peroxide,Acne,500-1000,https://example.com/konvy/104
-105,Water-Gel Moisturizer,Neutrogena,Moisturizer,Hyaluronic Acid,Oily,Combination,500-1000,https://example.com/konvy/105
-106,Intensive Repair Cream,Eucerin,Moisturizer,Urea,Dry,Sensitive,1000-2000,https://example.com/konvy/106
-107,UV Aqua Rich Essence SPF50,Biore,Sunscreen,UV Filters,All,500-1000,https://example.com/konvy/107
+1,Hydra-Light Water Gel,AquaPure,Moisturizer,Hyaluronic Acid,Oily,Medium,https://www.konvy.com/
+2,Oil Control Mattifying Essence,SebumStop,Toner,Niacinamide,Oily,Medium,https://www.konvy.com/
+3,Calm & Clear Gel Cleanser,DermaCalm,Cleanser,Centella Asiatica (Cica),Sensitive,Medium,https://www.konvy.com/
+4,Vitamin C Brightening Sunscreen SPF50+,GlowShield,Sunscreen,Vitamin C,All,Medium,https://www.konvy.com/
+5,Anti-Acne Spot Treatment,ZitAway,Treatment,Salicylic Acid (BHA),Acne-Prone,Low,https://www.konvy.com/
+6,Lightweight Barrier Repair Serum,SkinFix,Serum,Ceramides,Dry,High,https://www.konvy.com/
+7,Cooling Aloe Vera Mist,SoothingMist,Mist,Aloe Vera,All,Low,https://www.konvy.com/
+8,Pore Refining Clay Mask,ClayDetox,Mask,Kaolin Clay,Oily,Medium,https://www.konvy.com/
+9,Daily Hydration Booster,H2OPro,Essence,Glycerin,All,Low,https://www.konvy.com/
+10,Retinol-Alternative Bakuchiol Cream,AgeReverse,Moisturizer,Bakuchiol,Dry,High,https://www.konvy.com/
+11,Aqua Boost Serum,OceanDeep,Serum,Seaweed Extract,All,Medium,https://www.konvy.com/
+12,Gentle PH Balancing Wash,CleanSlate,Cleanser,Amino Acids,Sensitive,Medium,https://www.konvy.com/
+13,Invisible Zinc Oxide Sunscreen SPF30,ClearGuard,Sunscreen,Zinc Oxide,Sensitive,High,https://www.konvy.com/
+14,Dark Spot Corrector,FadeOut,Treatment,Tranexamic Acid,All,High,https://www.konvy.com/
+15,Tea Tree Spot Control Gel,PimplePals,Treatment,Tea Tree Oil,Acne-Prone,Low,https://www.konvy.com/
+16,Ultra Light Cloud Cream,AiryMoist,Moisturizer,Squalane,All,Medium,https://www.konvy.com/
+17,B5 Soothing Calming Serum,RescueLab,Serum,Panthenol (B5),Sensitive,Medium,https://www.konvy.com/
+18,Green Tea Pore Minimizing Toner,MatteZone,Toner,Green Tea Extract,Oily,Low,https://www.konvy.com/
+19,Exfoliating Glycolic Cleanser,RenewSkin,Cleanser,Glycolic Acid (AHA),All,Medium,https://www.konvy.com/
+20,Water Resistant Sport Sunscreen SPF50,ActiveUV,Sunscreen,Homosalate,All,Medium,https://www.konvy.com/
+21,Hyaluron Power Essence,HydroFill,Essence,Hyaluronic Acid,All,Medium,https://www.konvy.com/
+22,Oil-Free Hydrating Lotion,ZeroShine,Moisturizer,Allantoin,Oily,Low,https://www.konvy.com/
+23,Sensitive Skin Cleansing Milk,MilkWash,Cleanser,Chamomile,Sensitive,Low,https://www.konvy.com/
+24,Peptide Firming Serum,YouthBoost,Serum,Peptides,Dry,High,https://www.konvy.com/
+25,Azelaic Acid Spot Cream,RednessGone,Treatment,Azelaic Acid,Acne-Prone,Medium,https://www.konvy.com/
+26,Hydrating Overnight Mask,SleepWell,Mask,Betaine,All,Medium,https://www.konvy.com/
+27,Glow Enhancing Oil,Luminous,Serum,Jojoba Oil,Dry,High,https://www.konvy.com/
+28,Witch Hazel Pore Toner,TightenUp,Toner,Witch Hazel,Oily,Low,https://www.konvy.com/
+29,Low Foam Ceramide Cleanser,DailyDefense,Cleanser,Ceramides,All,Medium,https://www.konvy.com/
+30,Mineral Sunscreen Stick SPF 40,SunBlock,Sunscreen,Titanium Dioxide,All,Medium,https://www.konvy.com/
+31,BHA Blackhead Power Liquid,ClearPores,Treatment,Salicylic Acid,Oily,Medium,https://www.konvy.com/
+32,Bamboo Water Gel Cream,GreenMoist,Moisturizer,Bamboo Extract,All,Medium,https://www.konvy.com/
+33,Snail Mucin Repair Serum,SnailRevive,Serum,Snail Mucin,Dry,High,https://www.konvy.com/
+34,Rose Water Hydrating Toner,PetalFresh,Toner,Rose Water,Sensitive,Low,https://www.konvy.com/
+35,Fruit Enzyme Exfoliating Wash,SmoothSkin,Cleanser,Fruit Enzymes,All,Medium,https://www.konvy.com/
+36,Melatonin Night Cream,SleepRepair,Moisturizer,Melatonin,Dry,High,https://www.konvy.com/
+37,Cactus Water Serum,DesertHydra,Serum,Cactus Extract,All,Low,https://www.konvy.com/
+38,Ginseng Energizing Toner,EnergyTone,Toner,Ginseng,Dry,Medium,https://www.konvy.com/
+39,Charcoal Deep Cleansing Bar,PurityBar,Cleanser,Activated Charcoal,Oily,Low,https://www.konvy.com/
+40,Sensitive Face & Body Sunscreen,SafeUV,Sunscreen,Zinc Oxide,Sensitive,Medium,https://www.konvy.com/
+41,Mandelic Acid Peel Serum,PeelLab,Treatment,Mandelic Acid,All,Medium,https://www.konvy.com/
+42,Probiotics Balancing Cream,GutSkin,Moisturizer,Probiotics,Sensitive,High,https://www.konvy.com/
+43,Collagen Elasticity Serum,BounceBack,Serum,Collagen,Dry,High,https://www.konvy.com/
+44,Niacinamide 10% Solution,PorePerfect,Treatment,Niacinamide,Oily,Medium,https://www.konvy.com/
+45,Clay & Cica Calming Mask,MudPeace,Mask,Cica,Acne-Prone,Medium,https://www.konvy.com/
+46,Hyaluronic Dew Drops,DewySkin,Essence,Hyaluronic Acid,All,Medium,https://www.konvy.com/
+47,Sebum Absorbing Powder,OilOff,Treatment,Silica,Oily,Low,https://www.konvy.com/
+48,Chamomile Gentle Cleanser,CalmWash,Cleanser,Chamomile,Sensitive,Low,https://www.konvy.com/
+49,Resveratrol Antioxidant Serum,AntiOx,Serum,Resveratrol,All,High,https://www.konvy.com/
+50,Light Gel Matte Sunscreen,NoShineUV,Sunscreen,Avobenzone,Oily,Medium,https://www.konvy.com/
+51,Beta Glucan Hydration Cream,BetaMoist,Moisturizer,Beta Glucan,Sensitive,High,https://www.konvy.com/
+52,AHA/BHA Clarifying Toner,ClarityTone,Toner,Glycolic Acid,Oily,Medium,https://www.konvy.com/
+53,Kombucha Essence,FermentSkin,Essence,Kombucha,All,High,https://www.konvy.com/
+54,Marine Collagen Face Mask,SeaMask,Mask,Marine Collagen,Dry,Medium,https://www.konvy.com/
+55,Soothe & Hydrate Serum,HydraCalm,Serum,Madecassoside,Sensitive,Medium,https://www.konvy.com/
+56,Willow Bark Cleansing Oil,OilDissolve,Cleanser,Willow Bark Extract,All,Medium,https://www.konvy.com/
+57,UV Defense Aqua Gel SPF50 PA++++,AquaUV,Sunscreen,Octinoxate,All,Medium,https://www.konvy.com/
+58,Licorice Root Dark Spot Serum,Brightening,Treatment,Licorice Root,All,High,https://www.konvy.com/
+59,Salicylic Acid 2% Solution,AcneControl,Treatment,Salicylic Acid,Acne-Prone,Low,https://www.konvy.com/
+60,Cica Relief Water Cream,CicaDerm,Moisturizer,Centella Asiatica (Cica),Sensitive,Medium,https://www.konvy.com/
+61,Hyaluronic Acid 8% Serum,MaxHydrate,Serum,Hyaluronic Acid,Dry,Medium,https://www.konvy.com/
+62,Oil Absorbing Primer,PoreBlur,Treatment,Dimethicone,Oily,Medium,https://www.konvy.com/
+63,Rice Water Brightening Cleanser,RiceWash,Cleanser,Rice Water,All,Low,https://www.konvy.com/
+64,Physical Sunscreen Lotion SPF 50,ProtectPure,Sunscreen,Zinc Oxide,Dry,Medium,https://www.konvy.com/
+65,Vitamin E Moisture Cream,SoftSkin,Moisturizer,Vitamin E,Dry,Low,https://www.konvy.com/
+66,Propolis Calming Ampoule,BeeCalm,Serum,Propolis,Sensitive,High,https://www.konvy.com/
+67,Volcanic Clay Detox Mask,LavaMask,Mask,Volcanic Ash,Oily,Medium,https://www.konvy.com/
+68,Hyaluronic Acid Toner,HydroTone,Toner,Hyaluronic Acid,All,Low,https://www.konvy.com/
+69,Enzyme Powder Wash,PowderClean,Cleanser,Papain,All,Medium,https://www.konvy.com/
+70,Non-Comedogenic Face Oil,SafeOil,Serum,Hemp Seed Oil,Acne-Prone,High,https://www.konvy.com/
+71,Oil-Free Mineral Sunscreen,MatteSun,Sunscreen,Titanium Dioxide,Oily,Medium,https://www.konvy.com/
+72,Ceramide Replenishing Cream,BarrierUp,Moisturizer,Ceramides,Sensitive,High,https://www.konvy.com/
+73,Mugwort Calming Essence,MugSooth,Essence,Mugwort,Sensitive,Medium,https://www.konvy.com/
+74,5% Lactic Acid Serum,SmoothRenew,Treatment,Lactic Acid,All,Medium,https://www.konvy.com/
+75,Goji Berry Antioxidant Cream,BerryGuard,Moisturizer,Goji Berry Extract,All,High,https://www.konvy.com/
+76,Ferulic Acid + Vitamin C Serum,VitCFix,Serum,Ferulic Acid,All,High,https://www.konvy.com/
+77,Bentonite Clay Mask,DetoxMask,Mask,Bentonite Clay,Oily,Low,https://www.konvy.com/
+78,PHA Gentle Exfoliating Toner,PHAExfo,Toner,PHA,Sensitive,Medium,https://www.konvy.com/
+79,Micellar Water Cleanser,QuickClean,Cleanser,Micellar Technology,All,Low,https://www.konvy.com/
+80,Dewy Finish Tinted Sunscreen,TintUV,Sunscreen,Chemical Filter Mix,Dry,Medium,https://www.konvy.com/
+81,Calendula Water Gel,FlowerCalm,Moisturizer,Calendula Extract,Sensitive,Low,https://www.konvy.com/
+82,Zinc & Niacinamide Solution,RednessControl,Treatment,Zinc PCA,Acne-Prone,Low,https://www.konvy.com/
+83,Peptide Eye Cream,EyeLift,Treatment,Peptides,All,Medium,https://www.konvy.com/
+84,Green Tea Balancing Lotion,TeaMatt,Moisturizer,Green Tea Extract,Oily,Medium,https://www.konvy.com/
+85,Pure Jojoba Cleansing Oil,CleanOil,Cleanser,Jojoba Oil,Dry,Medium,https://www.konvy.com/
+86,Aloe + Squalane Serum,DesertDew,Serum,Squalane,All,Medium,https://www.konvy.com/
+87,Bamboo Charcoal Pore Strip,NoseClean,Treatment,Charcoal,Oily,Low,https://www.konvy.com/
+88,Cranberry Seed Oil Serum,SeedOil,Serum,Cranberry Seed Oil,Dry,High,https://www.konvy.com/
+89,Sulfate-Free Foaming Cleanser,FoamFresh,Cleanser,Cocamidopropyl Betaine,All,Medium,https://www.konvy.com/
+90,SPF 35 Daily Moisturizer,MoistUV,Sunscreen,Octisalate,All,Low,https://www.konvy.com/
+91,Beta Hydroxy Spot Patches,PimplePatch,Treatment,Hydrocolloid,Acne-Prone,Low,https://www.konvy.com/
+92,Ultra Repair Cream,ExtremeMoist,Moisturizer,Colloidal Oatmeal,Dry,Medium,https://www.konvy.com/
+93,Hyaluronic Acid & B5 Toner,DuoTone,Toner,Hyaluronic Acid,All,Medium,https://www.konvy.com/
+94,Licorice & Niacinamide Serum,EvenTone,Serum,Licorice Root,All,Medium,https://www.konvy.com/
+95,Detoxifying Seaweed Mask,AlgaeMask,Mask,Seaweed Extract,Oily,Medium,https://www.konvy.com/
+96,Squalane Oil Cleanser,SqualaneClean,Cleanser,Squalane,Sensitive,Medium,https://www.konvy.com/
+97,Physical Defense Serum SPF 30,PhysiGuard,Sunscreen,Zinc Oxide,All,High,https://www.konvy.com/
+98,Centella Asiatica Powder,CicaPowder,Treatment,Centella Asiatica (Cica),Acne-Prone,Medium,https://www.konvy.com/
+99,Marine Hyaluronic Serum,SeaMoist,Serum,Marine Hyaluronics,All,High,https://www.konvy.com/
+100,Glycerin Hydrating Toner,GlycerTone,Toner,Glycerin,Dry,Low,https://www.konvy.com/
+101,Cactus Water Gel Cream,DesertCalm,Moisturizer,Cactus Extract,Sensitive,Medium,https://www.konvy.com/
+102,Azelaic Acid Suspension,RednessFix,Treatment,Azelaic Acid,All,Medium,https://www.konvy.com/
+103,BHA Salicylic Acid Cleanser,PoreClear,Cleanser,Salicylic Acid (BHA),Oily,Medium,https://www.konvy.com/
+104,Allantoin Soothing Mist,CalmMist,Mist,Allantoin,Sensitive,Low,https://www.konvy.com/
+105,Bakuchiol Firming Cream,Youthful,Moisturizer,Bakuchiol,All,High,https://www.konvy.com/
+106,PHA/AHA Gentle Toner,GlowTone,Toner,PHA,All,Medium,https://www.konvy.com/
+107,Mineral Sunscreen Powder SPF 30,PowderUV,Sunscreen,Titanium Dioxide,All,Low,https://www.konvy.com/
+108,Probiotics & Cica Serum,BiomeHeal,Serum,Probiotics,Sensitive,High,https://www.konvy.com/
+
