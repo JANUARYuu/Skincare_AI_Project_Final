@@ -18,13 +18,24 @@ def load_db(file_path):
         return pd.DataFrame()
     
     try:
-        db = pd.read_csv(file_path)
+        # กำหนด dtypes เพื่อป้องกันปัญหา 'float' และ 'str' ในคอลัมน์ตัวเลข
+        if file_path == 'foundation_shades.csv' or file_path == 'skin_tones.csv':
+            dtype_map = {'Depth_Scale': float}
+        else:
+            dtype_map = None
+
+        db = pd.read_csv(file_path, dtype=dtype_map, na_values=['N/A', '', ' '])
+        
+        # สำหรับคอลัมน์ตัวเลข ให้เติมค่าว่างด้วย NaN และแปลงเป็นตัวเลขเพื่อคำนวณ
+        if 'Depth_Scale' in db.columns:
+            db['Depth_Scale'] = pd.to_numeric(db['Depth_Scale'], errors='coerce')
+        
         # เตรียมข้อมูลสำหรับ Rule-Based Logic
         if 'Key_Ingredient' in db.columns:
-             db['Key_Ingredient'] = db['Key_Ingredient'].astype(str).fillna('') 
+             db['Key_Ingredient'] = db['Key_Ingredient'].astype(str).fillna('ไม่ระบุ') 
         if 'Price_Range' in db.columns:
             db['Price_Range'] = db['Price_Range'].fillna('ไม่ระบุ')
-        # คอลัมน์ที่ถูกลบออกไปแล้ว (เช่น Konvy_Link) จะไม่ถูกอ้างถึงในโค้ดนี้
+            
         return db
     except Exception as e:
         st.error(f"❗ ข้อผิดพลาดในการอ่านไฟล์ {file_path}: {e}")
@@ -65,8 +76,9 @@ def analyze_skin(uploaded_file, tone_db):
     # 2. สุ่มผลลัพธ์โทนสีผิวจากฐานข้อมูลที่กรองแล้ว
     if not tone_options.empty:
         random_tone = tone_options.sample(n=1).iloc[0]
-        undertone = random_tone['Undertone']
-        depth_scale = random_tone['Depth_Scale']
+        # ตรวจสอบค่าก่อนนำมาใช้
+        undertone = random_tone['Undertone'] if 'Undertone' in random_tone else 'Neutral'
+        depth_scale = random_tone['Depth_Scale'] if 'Depth_Scale' in random_tone and not pd.isna(random_tone['Depth_Scale']) else 4.5
     else:
         undertone = 'Neutral'
         depth_scale = 4.5
@@ -75,7 +87,7 @@ def analyze_skin(uploaded_file, tone_db):
         'Skin_Type': skin_type,  
         'Acne_Severity': acne_severity,
         'Undertone': undertone,
-        'Depth_Scale': depth_scale
+        'Depth_Scale': float(depth_scale) # รับรองว่าเป็น float
     }
 
 # ----------------------------------------------------------------------
@@ -128,15 +140,21 @@ def recommend_foundation(undertone, depth_scale, db):
     """จับคู่เฉดสีรองพื้นตามโทนผิวและความเข้ม"""
     if db.empty:
         return pd.DataFrame()
-
-    filtered_df = db[db['Undertone'] == undertone]
+        
+    # กรองข้อมูลให้เหลือเฉพาะแถวที่ Depth_Scale เป็นตัวเลข (ไม่เป็น NaN)
+    filtered_df = db[db['Depth_Scale'].notna()]
     
+    # 1. กรองตาม Undertone ที่ตรงกัน
+    filtered_df = filtered_df[filtered_df['Undertone'] == undertone]
+    
+    # 2. หากไม่พบ ให้ใช้ Neutral แทน
     if filtered_df.empty:
         filtered_df = db[db['Undertone'] == 'Neutral']
 
     if filtered_df.empty:
         return pd.DataFrame() 
 
+    # 3. คำนวณค่าความแตกต่าง (Depth_Scale ถูกรับรองว่าเป็น float แล้ว)
     filtered_df['Depth_Diff'] = np.abs(filtered_df['Depth_Scale'] - depth_scale)
     
     return filtered_df.sort_values(by='Depth_Diff').head(3).drop(columns=['Depth_Diff']).reset_index(drop=True)
@@ -188,8 +206,9 @@ def recommend_makeup(undertone, db):
 # ----------------------------------------------------------------------
 
 def main():
+    # ตรวจสอบว่าไฟล์ฐานข้อมูลทั้งหมดถูกโหลดหรือไม่
     if PRODUCT_DB.empty or SHADE_DB.empty or TONE_DB.empty or MAKEUP_DB.empty:
-        st.warning("❗ โปรดตรวจสอบว่าไฟล์ฐานข้อมูลทั้งหมด (products.csv, foundation_shades.csv, skin_tones.csv, makeup_products.csv) พร้อมใช้งาน")
+        st.warning("❗ โปรดตรวจสอบว่าไฟล์ฐานข้อมูลทั้งหมด (products.csv, foundation_shades.csv, skin_tones.csv, makeup_products.csv) พร้อมใช้งานและมีข้อมูล")
         return
 
     st.title("🔬 AI Skincare & Makeup Advisor: Face Analysis Project")
@@ -208,11 +227,12 @@ def main():
 
         with col1:
             try:
+                # แสดงภาพโดยไม่มีการประมวลผลใบหน้า (แก้ปัญหา Haar Cascade)
                 file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
                 opencv_image = cv2.imdecode(file_bytes, 1)
                 st.image(opencv_image, channels="BGR", caption=f"ภาพที่อัปโหลด ({uploaded_file.name})", use_column_width=True)
-            except Exception:
-                st.error(f"ไม่สามารถแสดงภาพได้")
+            except Exception as e:
+                st.error(f"ไม่สามารถแสดงภาพได้: {e}")
 
         with col2:
             st.subheader("📊 ผลการวิเคราะห์สภาพผิวและโทนสี (Simulated)")
@@ -241,7 +261,6 @@ def main():
                     col_img_sk, col_info_sk = st.columns([1, 4]) 
 
                     with col_img_sk:
-                        # แสดงรูปภาพผลิตภัณฑ์
                         image_file = row.get('Image_File', 'default.png')
                         image_path = f"images/{image_file}"
                         if os.path.exists(image_path):
@@ -271,7 +290,6 @@ def main():
                 col_img_fd, col_info_fd = st.columns([1, 4]) 
                 
                 with col_img_fd:
-                    # แสดงรูปภาพรองพื้น
                     image_file = row.get('Image_File', 'default.png')
                     image_path = f"images/{image_file}"
                     if os.path.exists(image_path):
@@ -280,8 +298,10 @@ def main():
                         st.caption(f"No Image: {image_file}")
 
                 with col_info_fd:
+                    # ตรวจสอบว่าคอลัมน์ Depth_Scale เป็นตัวเลขก่อนแสดงผล
+                    depth_display = f"{row['Depth_Scale']:.1f}" if pd.notna(row['Depth_Scale']) else 'N/A'
                     st.markdown(f"**{row['Shade_Name']}** (แบรนด์: {row['Brand']})")
-                    st.markdown(f"**ระดับ:** {row['Coverage']} | **โทน:** {row['Undertone']} | **Depth:** {row['Depth_Scale']:.1f}")
+                    st.markdown(f"**ระดับ:** {row['Coverage']} | **โทน:** {row['Undertone']} | **Depth:** {depth_display}")
 
                 st.markdown("---")
         else:
@@ -309,7 +329,6 @@ def main():
                         col_img_mk, col_info_mk = st.columns([1, 4]) 
                         
                         with col_img_mk:
-                            # แสดงรูปภาพเมคอัพ
                             image_file = row.get('Image_File', 'default.png')
                             image_path = f"images/{image_file}"
                             if os.path.exists(image_path):
