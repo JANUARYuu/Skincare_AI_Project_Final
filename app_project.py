@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import cv2 # ไลบรารีที่ใช้ในการวิเคราะห์ภาพถ่าย
+import cv2 
 import os
 
 # ----------------------------------------------------------------------
@@ -22,7 +22,6 @@ def load_db(file_path):
         
         # จัดการคอลัมน์ Depth_Scale ให้เป็นตัวเลขเท่านั้น
         if 'Depth_Scale' in db.columns:
-            # แปลงค่าที่ไม่ใช่ตัวเลขเป็น NaN ก่อน
             db['Depth_Scale'] = pd.to_numeric(db['Depth_Scale'], errors='coerce')
             
         # จัดการค่าว่างในคอลัมน์สตริง
@@ -31,7 +30,7 @@ def load_db(file_path):
         if 'Price_Range' in db.columns:
             db['Price_Range'] = db['Price_Range'].fillna('ไม่ระบุ')
             
-        # ตรวจสอบว่า DataFrame ไม่ว่างเปล่า (ถ้าไฟล์ว่างเปล่า จะแจ้งเตือนที่นี่)
+        # ตรวจสอบว่า DataFrame ไม่ว่างเปล่า
         if db.empty:
             st.warning(f"ไฟล์ '{file_path}' โหลดได้ แต่ไม่มีข้อมูลอยู่ภายใน")
 
@@ -56,9 +55,18 @@ def analyze_skin_from_image(uploaded_file):
     if uploaded_file is None:
         return None
     
+    # 🌟 การแก้ไขปัญหา: รีเซ็ตตัวชี้ไฟล์กลับไปที่เริ่มต้นก่อนอ่าน (ถ้าไฟล์ถูกอ่านไปแล้วใน UI)
+    uploaded_file.seek(0) 
+
     # 1. อ่านภาพด้วย OpenCV
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
     image = cv2.imdecode(file_bytes, 1) # BGR format
+    
+    # ตรวจสอบความถูกต้องของการอ่านภาพ
+    if image is None:
+        st.error("❗ ไม่สามารถถอดรหัสไฟล์ภาพได้ กรุณาลองใช้ไฟล์ JPG/PNG อื่น")
+        return None
+        
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     
     # 2. คำนวณค่าสีเฉลี่ย
@@ -223,12 +231,16 @@ def main():
     if uploaded_file is not None:
         
         col1, col2 = st.columns([1, 1])
+        
+        # ต้องอ่านไฟล์ก่อนเรียก analyze_skin_from_image เพื่อให้ st.image ทำงาน
+        file_bytes_display = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+        
+        # รีเซ็ตตัวชี้ไฟล์ก่อนเรียก analyze_skin_from_image
+        uploaded_file.seek(0)
 
         with col1:
             try:
-                # แสดงภาพที่อัปโหลด
-                file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-                opencv_image = cv2.imdecode(file_bytes, 1)
+                opencv_image = cv2.imdecode(file_bytes_display, 1)
                 st.image(opencv_image, channels="BGR", caption=f"ภาพที่อัปโหลด", use_column_width=True)
             except Exception as e:
                 st.error(f"ไม่สามารถแสดงภาพได้: {e}")
@@ -243,102 +255,105 @@ def main():
                 st.metric(label="ประเภทผิวหลัก", value=f"**{results['Skin_Type']}**")
                 st.metric(label="ระดับความรุนแรงของสิว", value=f"**{results['Acne_Severity']}**")
                 st.info(f"**โทนสีผิว (Undertone):** {results['Undertone']} | **ระดับความเข้ม (Depth):** {results['Depth_Scale']:.2f}")
+            elif results is None and 'analyze_skin_from_image' in locals():
+                st.warning("ไม่สามารถวิเคราะห์ภาพได้ โปรดตรวจสอบประเภทไฟล์ภาพ")
 
         st.markdown("---")
         
-        # 2. แสดงผลการแนะนำ Skincare
-        st.header("🧴 2. ผลิตภัณฑ์บำรุงผิวที่แนะนำ (Skincare)")
-        skincare_recommendations = recommend_skincare(results, PRODUCT_DB)
-        
-        if not skincare_recommendations:
-            st.warning("ไม่พบผลิตภัณฑ์บำรุงผิวที่ตรงกับเงื่อนไขในฐานข้อมูล 'products.csv'.")
-        else:
-            for category, df_reco in skincare_recommendations.items():
-                st.markdown(f"#### {category}")
-                
-                for _, row in df_reco.iterrows():
-                    col_img_sk, col_info_sk = st.columns([1, 4]) 
-
-                    with col_img_sk:
-                        image_file = row.get('Image_File', 'default.png')
-                        image_path = f"images/{image_file}"
-                        if os.path.exists(image_path):
-                            st.image(image_path, width=100)
-                        else:
-                            st.caption(f"No Image: {image_file}")
-                            
-                    with col_info_sk:
-                        st.markdown(f"**{row['Product_Name']}** (แบรนด์: {row['Brand']})")
-                        st.markdown(f"**จุดเด่น:** *{row['Key_Ingredient']}* | ราคา: {row['Price_Range']}")
-                        
-                    st.markdown("---")
-        
-        st.markdown("---")
-
-        # 3. แสดงผลการแนะนำ Foundation
-        st.header("🎨 3. เฉดสีรองพื้นที่แนะนำ (Foundation)")
-        
-        foundation_recommendations = recommend_foundation(
-            results['Undertone'], results['Depth_Scale'], SHADE_DB
-        )
-
-        if not foundation_recommendations.empty:
-            st.markdown(f"**เฉดสีที่ใกล้เคียงที่สุด** สำหรับโทน **{results['Undertone']}** และผิวระดับ **{results['Depth_Scale']:.2f}**:")
+        # 2. แสดงผลการแนะนำ Skincare (ต้องมี results)
+        if results:
+            st.header("🧴 2. ผลิตภัณฑ์บำรุงผิวที่แนะนำ (Skincare)")
+            skincare_recommendations = recommend_skincare(results, PRODUCT_DB)
             
-            for _, row in foundation_recommendations.iterrows():
-                col_img_fd, col_info_fd = st.columns([1, 4]) 
-                
-                with col_img_fd:
-                    image_file = row.get('Image_File', 'default.png')
-                    image_path = f"images/{image_file}"
-                    if os.path.exists(image_path):
-                        st.image(image_path, width=100)
-                    else:
-                        st.caption(f"No Image: {image_file}")
-
-                with col_info_fd:
-                    depth_display = f"{row['Depth_Scale']:.1f}" if pd.notna(row['Depth_Scale']) else 'N/A'
-                    st.markdown(f"**{row['Shade_Name']}** (แบรนด์: {row['Brand']})")
-                    st.markdown(f"**ระดับ:** {row['Coverage']} | **โทน:** {row['Undertone']} | **Depth:** {depth_display}")
-
-                st.markdown("---")
-        else:
-            st.warning("ไม่พบเฉดสีที่ใกล้เคียงในฐานข้อมูล 'foundation_shades.csv'.")
-            
-        st.markdown("---")
-            
-        # 4. แสดงผลการแนะนำ Makeup Products อื่นๆ
-        st.header("💄 4. ผลิตภัณฑ์แต่งหน้าอื่นๆ ที่แนะนำ (Makeup)")
-
-        if MAKEUP_DB.empty:
-            st.warning("ไม่พบไฟล์ 'makeup_products.csv' กรุณาตรวจสอบ")
-        else:
-            makeup_recommendations = recommend_makeup(
-                results['Undertone'], MAKEUP_DB
-            )
-
-            if not makeup_recommendations:
-                st.warning("ไม่พบผลิตภัณฑ์เมคอัพที่ตรงกับเงื่อนไขในฐานข้อมูล")
+            if not skincare_recommendations:
+                st.warning("ไม่พบผลิตภัณฑ์บำรุงผิวที่ตรงกับเงื่อนไขในฐานข้อมูล 'products.csv'.")
             else:
-                for category, df_reco in makeup_recommendations.items():
+                for category, df_reco in skincare_recommendations.items():
                     st.markdown(f"#### {category}")
                     
                     for _, row in df_reco.iterrows():
-                        col_img_mk, col_info_mk = st.columns([1, 4]) 
-                        
-                        with col_img_mk:
+                        col_img_sk, col_info_sk = st.columns([1, 4]) 
+
+                        with col_img_sk:
                             image_file = row.get('Image_File', 'default.png')
                             image_path = f"images/{image_file}"
                             if os.path.exists(image_path):
                                 st.image(image_path, width=100)
                             else:
                                 st.caption(f"No Image: {image_file}")
-
-                        with col_info_mk:
+                                
+                        with col_info_sk:
                             st.markdown(f"**{row['Product_Name']}** (แบรนด์: {row['Brand']})")
-                            st.markdown(f"**จุดเด่น:** *{row.get('Key_Feature', 'ไม่ระบุ')}* | ราคา: {row['Price_Range']}")
-
+                            st.markdown(f"**จุดเด่น:** *{row['Key_Ingredient']}* | ราคา: {row['Price_Range']}")
+                            
                         st.markdown("---")
+            
+            st.markdown("---")
+
+            # 3. แสดงผลการแนะนำ Foundation
+            st.header("🎨 3. เฉดสีรองพื้นที่แนะนำ (Foundation)")
+            
+            foundation_recommendations = recommend_foundation(
+                results['Undertone'], results['Depth_Scale'], SHADE_DB
+            )
+
+            if not foundation_recommendations.empty:
+                st.markdown(f"**เฉดสีที่ใกล้เคียงที่สุด** สำหรับโทน **{results['Undertone']}** และผิวระดับ **{results['Depth_Scale']:.2f}**:")
+                
+                for _, row in foundation_recommendations.iterrows():
+                    col_img_fd, col_info_fd = st.columns([1, 4]) 
+                    
+                    with col_img_fd:
+                        image_file = row.get('Image_File', 'default.png')
+                        image_path = f"images/{image_file}"
+                        if os.path.exists(image_path):
+                            st.image(image_path, width=100)
+                        else:
+                            st.caption(f"No Image: {image_file}")
+
+                    with col_info_fd:
+                        depth_display = f"{row['Depth_Scale']:.1f}" if pd.notna(row['Depth_Scale']) else 'N/A'
+                        st.markdown(f"**{row['Shade_Name']}** (แบรนด์: {row['Brand']})")
+                        st.markdown(f"**ระดับ:** {row['Coverage']} | **โทน:** {row['Undertone']} | **Depth:** {depth_display}")
+
+                    st.markdown("---")
+            else:
+                st.warning("ไม่พบเฉดสีที่ใกล้เคียงในฐานข้อมูล 'foundation_shades.csv'.")
+                
+            st.markdown("---")
+                
+            # 4. แสดงผลการแนะนำ Makeup Products อื่นๆ
+            st.header("💄 4. ผลิตภัณฑ์แต่งหน้าอื่นๆ ที่แนะนำ (Makeup)")
+
+            if MAKEUP_DB.empty:
+                st.warning("ไม่พบไฟล์ 'makeup_products.csv' กรุณาตรวจสอบ")
+            else:
+                makeup_recommendations = recommend_makeup(
+                    results['Undertone'], MAKEUP_DB
+                )
+
+                if not makeup_recommendations:
+                    st.warning("ไม่พบผลิตภัณฑ์เมคอัพที่ตรงกับเงื่อนไขในฐานข้อมูล")
+                else:
+                    for category, df_reco in makeup_recommendations.items():
+                        st.markdown(f"#### {category}")
+                        
+                        for _, row in df_reco.iterrows():
+                            col_img_mk, col_info_mk = st.columns([1, 4]) 
+                            
+                            with col_img_mk:
+                                image_file = row.get('Image_File', 'default.png')
+                                image_path = f"images/{image_file}"
+                                if os.path.exists(image_path):
+                                    st.image(image_path, width=100)
+                                else:
+                                    st.caption(f"No Image: {image_file}")
+
+                            with col_info_mk:
+                                st.markdown(f"**{row['Product_Name']}** (แบรนด์: {row['Brand']})")
+                                st.markdown(f"**จุดเด่น:** *{row.get('Key_Feature', 'ไม่ระบุ')}* | ราคา: {row['Price_Range']}")
+
+                            st.markdown("---")
 
 
 if __name__ == "__main__":
