@@ -1,154 +1,201 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import cv2
-import os
+# Note: หากคุณใช้ OpenCV ในส่วนอื่นของโค้ดโปรดเพิ่ม 'import cv2' ที่นี่
+# import cv2 
 
-# --- 0. การตั้งค่าและการโหลดฐานข้อมูล ---
+# ----------------------------------------------------------------------
+# 1. การโหลดฐานข้อมูล (ต้องไม่มี 'FileNotFoundError' ใน Streamlit Cloud)
+# ----------------------------------------------------------------------
 
-st.set_page_config(layout="wide", page_title="AI Skincare Advisor Project")
+# โหลดฐานข้อมูลผลิตภัณฑ์บำรุงผิว
+try:
+    PRODUCT_DB = pd.read_csv("products.csv")
+except FileNotFoundError:
+    st.error("❌ ERROR: ไม่พบไฟล์ 'products.csv' โปรดตรวจสอบใน GitHub.")
+    PRODUCT_DB = pd.DataFrame() 
 
-@st.cache_data
-def load_product_db():
-    """โหลดฐานข้อมูลผลิตภัณฑ์จาก products.csv"""
-    file_path = 'products.csv'
-    if not os.path.exists(file_path):
-        st.error(f"❗ ข้อผิดพลาดร้ายแรง: ไม่พบไฟล์ '{file_path}' กรุณาสร้างไฟล์และใส่ข้อมูลตามที่แนะนำ")
+# โหลดฐานข้อมูลเฉดสีรองพื้น
+try:
+    SHADE_DB = pd.read_csv("foundation_shades.csv")
+except FileNotFoundError:
+    st.warning("⚠️ Warning: ไม่พบไฟล์ 'foundation_shades.csv' ฟังก์ชันแนะนำรองพื้นจะถูกจำกัด")
+    SHADE_DB = pd.DataFrame() 
+
+
+# ----------------------------------------------------------------------
+# 2. ฟังก์ชันแนะนำผลิตภัณฑ์บำรุงผิว
+# ----------------------------------------------------------------------
+
+def recommend_skincare(skin_type, max_price, category):
+    """ฟังก์ชันแนะนำผลิตภัณฑ์บำรุงผิวตามประเภทผิว, ราคา และหมวดหมู่"""
+    if PRODUCT_DB.empty:
         return pd.DataFrame()
     
-    try:
-        db = pd.read_csv(file_path)
-        db['Price_Range'] = db['Price_Range'].fillna('ไม่ระบุ')
-        db['Konvy_Link'] = db['Konvy_Link'].fillna('#')
-        return db
-    except Exception as e:
-        st.error(f"❗ ข้อผิดพลาดในการอ่านไฟล์ CSV: {e}")
-        return pd.DataFrame()
+    df = PRODUCT_DB.copy()
+    
+    # แปลง Price_Range เป็นตัวเลขเพื่อเปรียบเทียบราคา
+    # สมมติฐาน: Low=1, Medium=2, High=3
+    price_map = {'Low': 1, 'Medium': 2, 'High': 3}
+    df['Price_Value'] = df['Price_Range'].map(price_map)
+    
+    # กรองตามประเภทผิว (Target_Skin_Type)
+    if skin_type != 'All':
+        df = df[df['Target_Skin_Type'].isin([skin_type, 'All'])]
 
-PRODUCT_DB = load_product_db()
+    # กรองตามหมวดหมู่ (Category)
+    if category != 'All':
+        df = df[df['Category'] == category]
+        
+    # กรองตามช่วงราคา (Price_Range)
+    if max_price == 'Low':
+        df = df[df['Price_Value'] <= 1]
+    elif max_price == 'Medium':
+        df = df[df['Price_Value'] <= 2]
+    # ถ้าเลือก High จะรวมทุกช่วงราคา (Price_Value <= 3)
 
-# --- 1. ฟังก์ชันจำลองการวิเคราะห์สภาพผิว (Machine Learning Mock) ---
+    # คืนค่าผลิตภัณฑ์ที่ดีที่สุด 5-10 รายการ
+    return df.head(10).drop(columns=['Price_Value']).reset_index(drop=True)
 
-def analyze_skin(uploaded_file):
-    """
-    ฟังก์ชันจำลองผลการวิเคราะห์ผิวหน้าตามชื่อไฟล์ที่อัปโหลด
-    (เพื่อสาธิตว่าผลลัพธ์ต่างกันแล้วแนะนำต่างกัน)
-    """
-    if uploaded_file is None:
+
+# ----------------------------------------------------------------------
+# 3. ฟังก์ชันจำลองการแนะนำเฉดสีรองพื้น
+# ----------------------------------------------------------------------
+
+def recommend_foundation(undertone, depth_scale, skin_type):
+    """จำลองการจับคู่เฉดสีรองพื้นตามข้อมูลสีผิว/ความต้องการ"""
+    if SHADE_DB.empty:
         return None
-        
-    file_name = uploaded_file.name.lower()
-    
-    if "acne" in file_name or "oil" in file_name or "มัน" in file_name or "สิว" in file_name:
-        # กรณีผิวมีปัญหา: หน้ามัน มีสิวปานกลาง
-        return {
-            'Skin_Type': 'Oily',  
-            'Acne_Severity': 'Moderate',
-            'Oiliness_Score': 0.85
-        }
-    else:
-        # กรณีผิวปกติ: ผิวผสม ไม่มีสิว
-        return {
-            'Skin_Type': 'Combination', 
-            'Acne_Severity': 'Low',
-            'Oiliness_Score': 0.45
-        }
 
-# --- 2. ฟังก์ชันแนะนำผลิตภัณฑ์ (Rule-Based Logic) ---
+    # 1. กรองตาม Undertone (จำเป็น)
+    filtered_df = SHADE_DB[SHADE_DB['Undertone'] == undertone]
 
-def recommend_products(skin_analysis_results, db):
-    """กำหนดกฎเกณฑ์การแนะนำผลิตภัณฑ์ตามผลการวิเคราะห์ผิว"""
-    skin_type = skin_analysis_results['Skin_Type']
-    acne_severity = skin_analysis_results['Acne_Severity']
-    recommendations = {}
+    if filtered_df.empty:
+        # ถ้าไม่มีโทนสีที่ตรง ให้ลองใช้ Neutral แทน
+        filtered_df = SHADE_DB[SHADE_DB['Undertone'] == 'Neutral']
+        if filtered_df.empty:
+            return None # ไม่สามารถแนะนำได้
 
-    # 1. Cleanser
-    if skin_type in ['Oily', 'Combination'] and acne_severity != 'Low':
-        reco = db[(db['Category'] == 'Cleanser') & (db['Key_Ingredient'].str.contains('Salicylic Acid', case=False, na=False))].head(1)
-    else:
-        reco = db[db['Category'] == 'Cleanser'].head(1)
-        
-    if not reco.empty:
-        recommendations['Step 1: Cleanser (ทำความสะอาด)'] = reco.iloc[0]
+    # 2. จับคู่ Depth_Scale (ค้นหาสีที่ใกล้เคียง)
+    # หาค่าเฉดสีที่ใกล้เคียงกับ Depth_Scale ที่ผู้ใช้ระบุที่สุด
+    # เราใช้ numpy.abs เพื่อหาค่าสัมบูรณ์ของผลต่าง
+    filtered_df['Depth_Diff'] = np.abs(filtered_df['Depth_Scale'] - depth_scale)
+    filtered_df = filtered_df.sort_values(by='Depth_Diff').head(10) # เลือกมา 10 อันดับแรกที่ใกล้เคียง
 
-    # 2. Treatment (สำคัญสำหรับสิว)
-    if acne_severity == 'Moderate':
-        reco = db[db['Key_Ingredient'].str.contains('Benzoyl Peroxide|Niacinamide', case=False, na=False)].head(2)
-        if not reco.empty:
-            recommendations['Step 2: Targeted Treatment (รักษาสิว/ลดรอย)'] = reco
+    # 3. กรองตาม Skin Type (ถ้ามี)
+    if skin_type != 'All':
+        filtered_df = filtered_df[filtered_df['Best_For_Type'].isin([skin_type, 'All'])]
 
-    # 3. Moisturizer (เนื้อบางเบาสำหรับหน้ามัน)
-    if skin_type in ['Oily', 'Combination']:
-        reco = db[(db['Category'] == 'Moisturizer') & (db['Product_Name'].str.contains('Gel|Water', case=False, na=False))].head(1)
-    else:
-        reco = db[db['Category'] == 'Moisturizer'].head(1) # มอยส์เจอไรเซอร์ทั่วไป
-    
-    if not reco.empty:
-        recommendations['Step 3: Moisturizer (เติมความชุ่มชื้น)'] = reco.iloc[0]
+    # คืนค่าเฉดสีที่ดีที่สุด 3 อันดับแรก
+    return filtered_df.head(3).drop(columns=['Depth_Diff']).reset_index(drop=True)
 
-    # 4. Sunscreen
-    reco = db[db['Category'] == 'Sunscreen'].head(1)
-    if not reco.empty:
-        recommendations['Step 4: Sunscreen (ป้องกัน)'] = reco.iloc[0]
-        
-    return recommendations
 
-# --- 3. Streamlit UI หลัก ---
+# ----------------------------------------------------------------------
+# 4. โครงสร้าง Streamlit หลัก (main)
+# ----------------------------------------------------------------------
 
 def main():
-    if PRODUCT_DB.empty:
-        st.warning("โปรดแก้ไขไฟล์ 'products.csv' ก่อนดำเนินการต่อ")
-        return
+    st.set_page_config(
+        page_title="AI Skincare & Makeup Advisor",
+        layout="wide"
+    )
+    st.title("✨ AI Skincare & Makeup Advisor (สำหรับผิวคนไทย)")
+    st.markdown("---")
 
-    st.title("🔬 AI Skincare Advisor: Face Analysis Project")
-    st.caption("ระบบจำลองการวิเคราะห์สภาพผิวและการแนะนำผลิตภัณฑ์ (สำหรับงานนำเสนอ)")
+
+    # ==================================================================
+    # 4.1 ฟังก์ชันแนะนำผลิตภัณฑ์บำรุงผิว
+    # ==================================================================
+    st.header("🧴 1. ระบบแนะนำผลิตภัณฑ์บำรุงผิว")
+
+    if PRODUCT_DB.empty:
+        st.error("โปรดอัปโหลดไฟล์ 'products.csv' ที่มีข้อมูลผลิตภัณฑ์ลงใน GitHub")
+    else:
+        st.markdown("กรุณาระบุความต้องการและปัญหาผิวของคุณ:")
+        
+        # UI Input สำหรับ Skincare
+        with st.container():
+            col_skin, col_price, col_cat = st.columns(3)
+
+            skin_type = col_skin.selectbox(
+                "ประเภทผิวหลัก/ปัญหาผิว:",
+                options=['All', 'Oily', 'Dry', 'Sensitive', 'Acne-Prone', 'Hyperpigmentation'],
+                index=0
+            )
+
+            max_price = col_price.selectbox(
+                "ช่วงราคาสูงสุดที่ต้องการ:",
+                options=['Low', 'Medium', 'High']
+            )
+            
+            category = col_cat.selectbox(
+                "ประเภทผลิตภัณฑ์ที่ต้องการ:",
+                options=['All', 'Cleanser', 'Toner', 'Essence', 'Serum', 'Moisturizer', 'Sunscreen', 'Treatment', 'Mask', 'Mist'],
+            )
+
+            if st.button("🔎 ค้นหาผลิตภัณฑ์ที่เหมาะสม", use_container_width=True):
+                recommendations = recommend_skincare(skin_type, max_price, category)
+                
+                if not recommendations.empty:
+                    st.subheader(f"✅ ผลิตภัณฑ์แนะนำสำหรับผิว '{skin_type}' (หมวดหมู่: {category}, ราคา: {max_price} และต่ำกว่า)")
+                    
+                    # แสดงผลในรูปแบบ DataFrame
+                    st.dataframe(recommendations)
+                    
+                else:
+                    st.warning("⚠️ ขออภัย ไม่พบผลิตภัณฑ์ที่ตรงกับเงื่อนไขทั้งหมด กรุณาลองปรับการกรอง")
+
     st.markdown("---")
     
-    st.subheader("อัปโหลดรูปภาพใบหน้าของคุณ")
-    uploaded_file = st.file_uploader("เลือกไฟล์รูปภาพ (JPG/PNG) - ลองใช้ชื่อไฟล์ที่มีคำว่า 'oil' หรือ 'acne' เพื่อดูผลลัพธ์สำหรับผิวมีปัญหา", type=["jpg", "jpeg", "png"])
+    # ==================================================================
+    # 4.2 ฟังก์ชันแนะนำเฉดสีรองพื้น (จำลอง)
+    # ==================================================================
+    st.header("🎨 2. ระบบแนะนำเฉดสีรองพื้น (Foundation)")
+    
+    if SHADE_DB.empty:
+        st.warning("⚠️ ไม่สามารถรันฟังก์ชันแนะนำรองพื้นได้เนื่องจากไม่พบไฟล์ 'foundation_shades.csv'")
+    else:
+        st.markdown("กรุณาระบุข้อมูลสีผิวเพื่อจำลองการจับคู่เฉดสี:")
+        
+        col_tone, col_depth, col_type_f = st.columns(3)
 
-    if uploaded_file is not None:
-        col1, col2 = st.columns([1, 1])
+        # 1. Input: Undertone (แทนการวิเคราะห์ภาพ)
+        user_undertone = col_tone.selectbox(
+            "โทนสีผิว (Undertone) ของคุณ:",
+            options=['Warm', 'Cool', 'Neutral'],
+            help="โทนสีผิวใต้ผิวหนัง: เหลือง/เขียว=Warm, ชมพู/แดง=Cool, กลาง=Neutral"
+        )
 
-        with col1:
-            # แสดงรูปภาพ
-            file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-            opencv_image = cv2.imdecode(file_bytes, 1)
-            st.image(opencv_image, channels="BGR", caption=f"ภาพที่อัปโหลด ({uploaded_file.name})", use_column_width=True)
+        # 2. Input: Depth Scale (แทนการวิเคราะห์ภาพ)
+        user_depth = col_depth.slider(
+            "ความเข้มของสีผิว (1=อ่อนมาก, 10=เข้มมาก):",
+            min_value=1.0, max_value=10.0, value=4.0, step=0.5
+        )
 
-        with col2:
-            st.subheader("📊 ผลการวิเคราะห์สภาพผิว (Simulated)")
-            with st.spinner('กำลังประมวลผล...'):
-                results = analyze_skin(uploaded_file)
-                
-            if results:
-                st.success("✅ วิเคราะห์สำเร็จ! (ผลลัพธ์จำลอง)")
-                st.metric(label="ประเภทผิวหลัก", value=f"**{results['Skin_Type']}**")
-                st.metric(label="ระดับความรุนแรงของสิว", value=f"**{results['Acne_Severity']}**")
-                st.caption(f"คะแนนความมัน: {results['Oiliness_Score']:.2f}")
+        # 3. Input: Skin Type (สำหรับเนื้อรองพื้น)
+        user_skin_type_f = col_type_f.selectbox(
+            "ประเภทผิวสำหรับรองพื้น:",
+            options=['All', 'Oily', 'Dry', 'Sensitive'],
+            index=0
+        )
 
-                st.markdown("---")
-                st.header("🛒 ผลิตภัณฑ์แนะนำสำหรับผิวคุณ")
-                product_recommendations = recommend_products(results, PRODUCT_DB)
+        if st.button("🔍 แนะนำเฉดสีรองพื้น", type="primary", use_container_width=True):
+            st.subheader(f"✅ ผลลัพธ์: เฉดสีที่แนะนำสำหรับโทน {user_undertone} & ระดับผิว {user_depth}")
 
-                if not product_recommendations:
-                    st.warning("ไม่พบผลิตภัณฑ์ที่ตรงกับเงื่อนไขในฐานข้อมูล 'products.csv'.")
-                    return
+            foundation_recommendations = recommend_foundation(
+                user_undertone, user_depth, user_skin_type_f
+            )
 
-                # แสดงผลลัพธ์การแนะนำ
-                for category, data in product_recommendations.items():
-                    st.markdown(f"#### {category}")
-                    
-                    if isinstance(data, pd.Series):
-                        df = pd.DataFrame([data])
-                    else:
-                        df = data
-                        
-                    for _, row in df.iterrows():
-                        st.markdown(f"**{row['Product_Name']}** (แบรนด์: {row['Brand']})")
-                        st.markdown(f"**จุดเด่น:** *{row['Key_Ingredient']}* | ราคา: {row['Price_Range']}")
-                        st.markdown(f"[🔗 ดูรายละเอียดสินค้า (ลิงก์จำลอง)]({row['Konvy_Link']})")
-                        st.markdown("---")
+            if foundation_recommendations is not None and not foundation_recommendations.empty:
+                st.dataframe(
+                    foundation_recommendations[['Shade_Name', 'Brand', 'Coverage', 'Best_For_Type', 'Konvy_Link']],
+                    use_container_width=True
+                )
+                st.info("คำแนะนำเหล่านี้เป็นผลจากการจับคู่ค่าความเข้มและโทนสีผิวที่ป้อน")
+            else:
+                st.warning("⚠️ ขออภัย ไม่พบเฉดสีที่ใกล้เคียงในฐานข้อมูล โปรดลองปรับค่าความเข้มของสีผิว")
 
-if __name__ == "__main__":
+
+# ตรวจสอบว่าโค้ดหลักกำลังถูกรันหรือไม่
+if __name__ == '__main__':
     main()
