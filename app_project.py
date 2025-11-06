@@ -8,7 +8,7 @@ import os
 # 0. การตั้งค่าและการโหลดฐานข้อมูล
 # ----------------------------------------------------------------------
 
-st.set_page_config(layout="wide", page_title="AI Skincare & Makeup Advisor: Image Analysis")
+st.set_page_config(layout="wide", page_title="AI Skincare & Makeup Advisor: Image-Only Face Analysis")
 
 @st.cache_data
 def load_db(file_path):
@@ -20,17 +20,13 @@ def load_db(file_path):
     try:
         db = pd.read_csv(file_path, na_values=['N/A', '', ' '])
         
-        # จัดการคอลัมน์ Depth_Scale ให้เป็นตัวเลขเท่านั้น
         if 'Depth_Scale' in db.columns:
             db['Depth_Scale'] = pd.to_numeric(db['Depth_Scale'], errors='coerce')
-            
-        # จัดการค่าว่างในคอลัมน์สตริง
         if 'Key_Ingredient' in db.columns:
              db['Key_Ingredient'] = db['Key_Ingredient'].astype(str).fillna('ไม่ระบุ') 
         if 'Price_Range' in db.columns:
             db['Price_Range'] = db['Price_Range'].fillna('ไม่ระบุ')
             
-        # ตรวจสอบว่า DataFrame ไม่ว่างเปล่า
         if db.empty:
             st.warning(f"ไฟล์ '{file_path}' โหลดได้ แต่ไม่มีข้อมูลอยู่ภายใน")
 
@@ -45,53 +41,53 @@ SHADE_DB = load_db('foundation_shades.csv')
 TONE_DB = load_db('skin_tones.csv')
 MAKEUP_DB = load_db('makeup_products.csv')
 
-
 # ----------------------------------------------------------------------
-# 1. ฟังก์ชันวิเคราะห์สภาพผิวและโทนสีผิวจากภาพ (Image Analysis)
+# โหลด DNN (Deep Learning) Model สำหรับ Face Detection (SSD)
+# ----------------------------------------------------------------------
+PROTOTXT = 'deploy.prototxt'
+CAFFEMODEL = 'res10_300x300_ssd_iter_140000.caffemodel'
+CONFIDENCE_THRESHOLD = 0.7 # ตั้งค่าความมั่นใจในการตรวจจับ (70%)
+
+if not os.path.exists(PROTOTXT) or not os.path.exists(CAFFEMODEL):
+    st.error(f"❗ ไม่พบไฟล์โมเดล DNN: '{PROTOTXT}' หรือ '{CAFFEMODEL}' กรุณาวางไฟล์ใน Root Directory")
+    DNN_FACE_DETECTOR = None
+else:
+    try:
+        DNN_FACE_DETECTOR = cv2.dnn.readNetFromCaffe(PROTOTXT, CAFFEMODEL)
+    except Exception as e:
+        st.error(f"❗ ข้อผิดพลาดในการโหลดโมเดล DNN: {e}")
+        DNN_FACE_DETECTOR = None
+        
+# ----------------------------------------------------------------------
+# 1. ฟังก์ชันวิเคราะห์สภาพผิวและโทนสีผิวจากภาพ (แกนหลัก)
 # ----------------------------------------------------------------------
 
-def analyze_skin_from_image(uploaded_file):
-    """วิเคราะห์โทนสีและความเข้มของผิวจากค่าสีเฉลี่ยของภาพ (BGR และ HSV)"""
-    if uploaded_file is None:
-        return None
-    
-    # 🌟 การแก้ไขปัญหา: รีเซ็ตตัวชี้ไฟล์กลับไปที่เริ่มต้นก่อนอ่าน (ถ้าไฟล์ถูกอ่านไปแล้วใน UI)
-    uploaded_file.seek(0) 
-
-    # 1. อ่านภาพด้วย OpenCV
-    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-    image = cv2.imdecode(file_bytes, 1) # BGR format
-    
-    # ตรวจสอบความถูกต้องของการอ่านภาพ
-    if image is None:
-        st.error("❗ ไม่สามารถถอดรหัสไฟล์ภาพได้ กรุณาลองใช้ไฟล์ JPG/PNG อื่น")
-        return None
+def analyze_skin_color(image):
+    """วิเคราะห์โทนสีและความเข้มของผิวจากภาพที่ถูกตัดเฉพาะส่วนใบหน้าแล้ว"""
+    if image is None or image.size == 0:
+        return None 
         
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     
-    # 2. คำนวณค่าสีเฉลี่ย
     avg_bgr = np.mean(image, axis=(0, 1))
     avg_hsv = np.mean(hsv_image, axis=(0, 1))
     
-    # 3. กำหนดความเข้มของผิว (Depth_Scale) โดยใช้ค่า V (Value/Brightness) ของ HSV
+    # กำหนดความเข้มของผิว (Depth_Scale)
     V = avg_hsv[2]
     depth_scale = 1.0 + (255 - V) / 25.5 
     depth_scale = np.clip(depth_scale, 1.0, 9.0)
     
-    # 4. กำหนดโทนสีผิว (Undertone) โดยใช้ค่า BGR
+    # กำหนดโทนสีผิว (Undertone)
     R, G, B = avg_bgr[2], avg_bgr[1], avg_bgr[0]
 
-    # Warm (R>G>B)
     if (R > G * 1.05 and G > B * 1.05) or (R + G) / 2 > B * 1.1:
         undertone = 'Warm' 
-    # Cool (B>R & B>G)
     elif B > R * 1.05 and B > G * 1.05:
         undertone = 'Cool' 
-    # Neutral
     else:
         undertone = 'Neutral' 
         
-    # 5. กำหนดประเภทผิว (Skin Type)
+    # กำหนดประเภทผิว (Skin Type)
     S = avg_hsv[1]
     
     if S < 100 and depth_scale < 5.0:
@@ -104,15 +100,62 @@ def analyze_skin_from_image(uploaded_file):
         skin_type = 'Combination'
         acne_severity = 'Low'
         
-    return {
+    results = {
         'Skin_Type': skin_type,  
         'Acne_Severity': acne_severity,
         'Undertone': undertone,
         'Depth_Scale': float(depth_scale)
     }
+    
+    return results
+
+def process_and_analyze_image(image):
+    """ตรวจจับใบหน้าด้วย DNN, ตัดภาพเฉพาะใบหน้า, และส่งไปวิเคราะห์สี"""
+    if image is None or DNN_FACE_DETECTOR is None:
+        return None, image # คืนภาพเดิมหากโมเดลไม่มี
+
+    (h, w) = image.shape[:2]
+    
+    blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
+    DNN_FACE_DETECTOR.setInput(blob)
+    detections = DNN_FACE_DETECTOR.forward()
+    
+    best_face_box = None
+    max_confidence = 0.0
+    
+    for i in range(0, detections.shape[2]):
+        confidence = detections[0, 0, i, 2]
+        if confidence > CONFIDENCE_THRESHOLD and confidence > max_confidence:
+            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+            best_face_box = box.astype("int")
+            max_confidence = confidence
+
+    if best_face_box is None:
+        st.warning("⚠️ ไม่พบใบหน้าในภาพ (DNN Detection) กรุณาอัปโหลดภาพที่เห็นใบหน้าชัดเจน")
+        return None, image # คืนภาพต้นฉบับถ้าไม่พบใบหน้า
+    
+    x1, y1, x2, y2 = best_face_box
+    
+    # ขยายขอบเขตใบหน้าเล็กน้อยเพื่อให้ครอบคลุมผิวมากขึ้น (เหมือนสแกนบัตรประชาชน)
+    w_face = x2 - x1
+    h_face = y2 - y1
+    expand_w = int(w_face * 0.2) # ขยาย 20%
+    expand_h = int(h_face * 0.2) # ขยาย 20%
+    
+    x1 = max(0, x1 - expand_w)
+    y1 = max(0, y1 - expand_h)
+    x2 = min(w, x2 + expand_w)
+    y2 = min(h, y2 + expand_h)
+
+    # ทำการ Crop ภาพส่วนใบหน้าออกมาโดยตรง
+    cropped_face_image = image[y1:y2, x1:x2]
+        
+    results = analyze_skin_color(cropped_face_image) # วิเคราะห์จากภาพที่ Crop แล้ว
+    return results, cropped_face_image # คืนค่าผลลัพธ์ และภาพใบหน้าที่ถูก Crop
+
 
 # ----------------------------------------------------------------------
-# 2. ฟังก์ชันแนะนำผลิตภัณฑ์ (Rule-Based Logic)
+# 2. ฟังก์ชันแนะนำผลิตภัณฑ์ (Rule-Based Logic) (ไม่มีการเปลี่ยนแปลง)
 # ----------------------------------------------------------------------
 
 def recommend_skincare(skin_analysis_results, db):
@@ -214,56 +257,55 @@ def recommend_makeup(undertone, db):
 # ----------------------------------------------------------------------
 
 def main():
-    # ตรวจสอบว่าโหลดฐานข้อมูลหลักสำเร็จหรือไม่
     if PRODUCT_DB.empty or SHADE_DB.empty or TONE_DB.empty or MAKEUP_DB.empty:
         st.error("❗ โครงสร้างฐานข้อมูลไม่สมบูรณ์ โปรดตรวจสอบไฟล์ CSV ทั้ง 4 ไฟล์ว่ามีข้อมูลอยู่หรือไม่")
         return
 
-    st.title("🔬 AI Skincare & Makeup Advisor: Image Analysis Project")
-    st.caption("ระบบวิเคราะห์โทนสีผิว ความเข้มผิว และการแนะนำผลิตภัณฑ์จากค่าสีเฉลี่ยของภาพ")
+    st.title("🔬 AI Skincare & Makeup Advisor: Image-Only Face Analysis (DNN)")
+    st.caption("ระบบวิเคราะห์โทนสีผิว ความเข้มผิว และการแนะนำผลิตภัณฑ์จากภาพ (เน้นเฉพาะใบหน้าที่ Crop แล้ว)")
     st.markdown("---")
     
     st.subheader("อัปโหลดรูปภาพใบหน้าของคุณ")
-    st.info("💡 **เคล็ดลับ:** ผลลัพธ์จะเปลี่ยนไปตามความสว่างของภาพ (Depth) และโทนสีหลัก (Undertone) ในภาพถ่าย")
+    st.info("💡 **เคล็ดลับ:** เพื่อผลลัพธ์ที่แม่นยำ ควรใช้ภาพที่เห็นใบหน้าชัดเจน และอยู่ในแสงธรรมชาติ")
     
     uploaded_file = st.file_uploader("เลือกไฟล์รูปภาพ (JPG/PNG)", type=["jpg", "jpeg", "png"])
-
+    
+    results = None
+    cropped_face_for_display = None 
+    
     if uploaded_file is not None:
-        
         col1, col2 = st.columns([1, 1])
-        
-        # ต้องอ่านไฟล์ก่อนเรียก analyze_skin_from_image เพื่อให้ st.image ทำงาน
-        file_bytes_display = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        
-        # รีเซ็ตตัวชี้ไฟล์ก่อนเรียก analyze_skin_from_image
-        uploaded_file.seek(0)
-
-        with col1:
-            try:
-                opencv_image = cv2.imdecode(file_bytes_display, 1)
-                st.image(opencv_image, channels="BGR", caption=f"ภาพที่อัปโหลด", use_column_width=True)
-            except Exception as e:
-                st.error(f"ไม่สามารถแสดงภาพได้: {e}")
 
         with col2:
-            st.subheader("📊 ผลการวิเคราะห์สภาพผิวและโทนสี (จากภาพถ่าย)")
-            with st.spinner('กำลังประมวลผลการวิเคราะห์สีภาพ...'):
-                results = analyze_skin_from_image(uploaded_file)
+            st.subheader("📊 ผลการวิเคราะห์สภาพผิวและโทนสี")
+            with st.spinner(f'กำลังประมวลผลรูปภาพโดยใช้ DNN Face Detection...'):
+                uploaded_file.seek(0)
+                file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+                image = cv2.imdecode(file_bytes, 1)
                 
+                results, cropped_face_for_display = process_and_analyze_image(image)
+            
             if results:
                 st.success("✅ วิเคราะห์สำเร็จ!")
                 st.metric(label="ประเภทผิวหลัก", value=f"**{results['Skin_Type']}**")
                 st.metric(label="ระดับความรุนแรงของสิว", value=f"**{results['Acne_Severity']}**")
                 st.info(f"**โทนสีผิว (Undertone):** {results['Undertone']} | **ระดับความเข้ม (Depth):** {results['Depth_Scale']:.2f}")
-            elif results is None and 'analyze_skin_from_image' in locals():
-                st.warning("ไม่สามารถวิเคราะห์ภาพได้ โปรดตรวจสอบประเภทไฟล์ภาพ")
+            else:
+                st.warning("⚠️ ไม่สามารถวิเคราะห์ได้ (ไม่พบใบหน้า หรือไฟล์มีปัญหา)")
+
+        with col1:
+            if cropped_face_for_display is not None and cropped_face_for_display.size > 0:
+                st.image(cv2.cvtColor(cropped_face_for_display, cv2.COLOR_BGR2RGB), caption=f"ใบหน้าที่ระบบใช้ในการวิเคราะห์", use_column_width=True)
+            else:
+                st.caption(f"กำลังรอผลลัพธ์การประมวลผลรูปภาพ หรือไม่พบใบหน้า")
 
         st.markdown("---")
         
-        # 2. แสดงผลการแนะนำ Skincare (ต้องมี results)
+        # 5. แสดงผลการแนะนำ (ถ้ามี results)
         if results:
+            # 2. แสดงผลการแนะนำ Skincare
             st.header("🧴 2. ผลิตภัณฑ์บำรุงผิวที่แนะนำ (Skincare)")
-            skincare_recommendations = recommend_skincare(results, PRODUCT_DB)
+            skincare_recommendations = recommend_skincare(results, PRODUCT_DB) 
             
             if not skincare_recommendations:
                 st.warning("ไม่พบผลิตภัณฑ์บำรุงผิวที่ตรงกับเงื่อนไขในฐานข้อมูล 'products.csv'.")
