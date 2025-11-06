@@ -1,2 +1,8 @@
 libgdk-pixbuf2.0-dev
 libgl1-mesa-glx
+# System dependencies for OpenCV (libSM, libXrender, libGL) and Video Processing (ffmpeg)
+libsm6
+libxext6
+libxrender1
+libgl1-mesa-glx 
+ffmpeg
