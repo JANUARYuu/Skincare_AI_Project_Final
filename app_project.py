@@ -39,7 +39,7 @@ def load_db(file_path):
 PRODUCT_DB = load_db('products.csv')
 SHADE_DB = load_db('foundation_shades.csv')
 TONE_DB = load_db('skin_tones.csv')
-MAKEUP_DB = load_db('makeup_products.csv') # แก้ไข NameError แล้ว
+MAKEUP_DB = load_db('makeup_products.csv')
 
 # ----------------------------------------------------------------------
 # โหลด DNN (Deep Learning) Model สำหรับ Face Detection (SSD)
