@@ -107,6 +107,27 @@ def analyze_skin_color(image):
     # ช่วงสีแดงเข้ม (H=160 ถึง H=180)
     lower_red2 = np.array([160, 50, 50])
     upper_red2 = np.array([180, 255, 255])
+    def process_and_analyze_image(image):
+    """ตรวจจับใบหน้าด้วย DNN, ตัดภาพเฉพาะใบหน้า **เป็นวงกลม**, และส่งไปวิเคราะห์สี"""
+    # ... (โค้ดส่วนการตรวจจับใบหน้า DNN) ...
+    
+    # ... (โค้ดส่วนการคำนวณ x1, y1, x2, y2) ...
+    
+    # 1. Crop ภาพส่วนใบหน้าออกมาเป็นสี่เหลี่ยมก่อน
+    cropped_face_image = image[y1:y2, x1:x2]
+    
+    # **<<<<<<<<<< โค้ดที่ต้องเพิ่ม: จัดการ 0x0 Error >>>>>>>>>>**
+    # ตรวจสอบว่าภาพที่ Crop มีมิติที่ถูกต้องหรือไม่ (สูง > 0 และ กว้าง > 0)
+    if cropped_face_image.shape[0] == 0 or cropped_face_image.shape[1] == 0:
+        st.warning("⚠️ ข้อผิดพลาดในการ Crop: ขนาดใบหน้าไม่ถูกต้อง หรืออยู่นอกขอบเขตภาพ")
+        # คืนค่าผลลัพธ์จากภาพเต็ม และภาพเต็ม (เพื่อให้แอปฯ ไม่ล่ม)
+        results = analyze_skin_color(image)
+        return results, image
+    # **<<<<<<<<<< สิ้นสุดโค้ดที่ต้องเพิ่ม >>>>>>>>>>**
+    
+    # 2. สร้าง Mask วงกลมบนภาพที่ Crop แล้ว
+    (ch, cw) = cropped_face_image.shape[:2]
+    center = (cw // 2, ch // 2)
 # 1. Crop ภาพส่วนใบหน้าออกมาเป็นสี่เหลี่ยมก่อน
     cropped_face_image = image[y1:y2, x1:x2]
     
