@@ -107,7 +107,17 @@ def analyze_skin_color(image):
     # ช่วงสีแดงเข้ม (H=160 ถึง H=180)
     lower_red2 = np.array([160, 50, 50])
     upper_red2 = np.array([180, 255, 255])
-
+# 1. Crop ภาพส่วนใบหน้าออกมาเป็นสี่เหลี่ยมก่อน
+    cropped_face_image = image[y1:y2, x1:x2]
+    
+    # **เพิ่มการตรวจสอบมิติที่นี่**
+    if cropped_face_image.shape[0] == 0 or cropped_face_image.shape[1] == 0:
+        st.error("⚠️ ข้อผิดพลาด: การ Crop ใบหน้าทำให้ได้ภาพขนาด 0x0 กรุณาลองภาพอื่น")
+        results = analyze_skin_color(image)
+        return results, image
+    
+    # 2. สร้าง Mask วงกลมบนภาพที่ Crop แล้ว
+    (ch, cw) = cropped_face_image.shape[:2]
     # สร้าง mask สำหรับรอยแดง
     mask1 = cv2.inRange(hsv_image, lower_red1, upper_red1)
     mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
