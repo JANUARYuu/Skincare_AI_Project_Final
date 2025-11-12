@@ -86,7 +86,42 @@ def analyze_skin_color(image):
         undertone = 'Cool' 
     else:
         undertone = 'Neutral' 
+        # ใช้อัตราส่วนรอยแดงเทียบกับพื้นที่ใบหน้าจริง
+    if non_black_pixels > 0:
+        redness_ratio = (red_pixels_count / non_black_pixels) * 100 
+    else:
+        redness_ratio = 0
+    
+    # START: การกำหนดระดับความรุนแรงของสิว/รอยแดง (Logic ใหม่)
+    if redness_ratio < 0.4:
+        acne_severity = 'Healthy (ผิวสุขภาพดี/ไม่มีสิว)'
+    elif 0.4 <= redness_ratio < 1.5:
+        # อาจเป็นรอยแดงเล็กน้อย หรือสิวอุดตันที่เริ่มอักเสบ
+        acne_severity = 'Minor Redness (รอยแดงเล็กน้อย/ระคายเคือง)'
+    elif 1.5 <= redness_ratio < 3.5:
+        # Mild: สิวอักเสบจำนวนไม่มาก
+        acne_severity = 'Mild Acne (สิวอักเสบเล็กน้อย/เริ่มมีอาการ)'
+    elif 3.5 <= redness_ratio < 6.0:
+        # Moderate: สิวอักเสบขนาดปานกลาง จำนวนมากขึ้น
+        acne_severity = 'Moderate Acne (สิวอักเสบปานกลาง/มีรอยชัดเจน)'
+    else:
+        # Severe: มีสิวอักเสบขนาดใหญ่ หรือสิวเห่อเต็มใบหน้า
+        acne_severity = 'Severe Acne (สิวอักเสบรุนแรง/สิวเห่อ)'
         
+    # ปรับระดับความรุนแรงสำหรับผิวแห้ง (อาจเกิดจากความแห้ง/ระคายเคือง)
+    if skin_type == 'Dry' and redness_ratio < 3.5:
+        if acne_severity in ['Minor Redness (รอยแดงเล็กน้อย/ระคายเคือง)', 'Mild Acne (สิวอักเสบเล็กน้อย/เริ่มมีอาการ)']:
+             acne_severity = 'Irritation/Low Acne (ระคายเคืองจากความแห้ง)'
+    # END: การกำหนดระดับความรุนแรงของสิว/รอยแดง (Logic ใหม่)
+        
+    results = {
+        'Skin_Type': skin_type,  
+        'Acne_Severity': acne_severity,
+        'Undertone': undertone,
+        'Depth_Scale': float(depth_scale)
+    }
+    
+    return results
     # --- 2. การกำหนดประเภทผิว (Skin Type) ---
     S = avg_hsv[1]
     
