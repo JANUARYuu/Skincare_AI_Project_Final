@@ -196,7 +196,7 @@ def get_makeup_recommendation(user_undertone, makeup_db):
 # 5. UI และการแสดงผล (Streamlit UI)
 # ----------------------------------------------------------------------
 
-st.title("AI Skincare & Makeup Advisor: Image-Only Face Analysis (DNN) 🧖‍♀️💄")
+st.title("JVP Face Analyzer 🧖‍♀️💄")
 st.markdown("ระบบวิเคราะห์โทนสีผิวและลักษณะใบหน้า เพื่อแนะนำผลิตภัณฑ์ที่เหมาะสม **(การประเมินสิวเป็นแบบจำลองอัตโนมัติจากภาพ)**")
 
 # Upload File Section
