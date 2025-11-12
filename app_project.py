@@ -13,24 +13,22 @@ from collections import defaultdict
 # ----------------------------------------------------------------------
 
 # ตั้งค่าหน้าเพจ
-st.set_page_config(layout="wide", page_title="JVP Face Analyzer")
+st.set_page_config(layout="wide", page_title="JVP Face Analyzer") 
 
-# ฟังก์ชันโหลดข้อมูล (แก้ไข NameError: เปลี่ยนชื่อจาก load_db_product_data เป็น load_db)
+# ฟังก์ชันโหลดข้อมูล
 @st.cache_data
 def load_db(file_path):
     """โหลดไฟล์ CSV และแปลงคอลัมน์ที่จำเป็น"""
     try:
         db = pd.read_csv(file_path, na_values=['N/A', '', ' '])
         
-        # แปลง Depth_Scale เป็นตัวเลข (สำหรับ foundation)
         if 'Depth_Scale' in db.columns:
             db['Depth_Scale'] = pd.to_numeric(db['Depth_Scale'], errors='coerce') 
         
-        # เติมค่าว่างใน Key_Ingredient/Key_Feature ด้วย 'ไม่มี' (สำหรับ Skincare/Makeup)
         if 'Key_Ingredient' in db.columns:
             db['Key_Ingredient'] = db['Key_Ingredient'].astype(str).fillna('ไม่มี')
         if 'Key_Feature' in db.columns:
-            db['Key_Feature'] = db['Key_Feature'].astype(str).fillna('ไม่มี') # แก้ไข Key_feature เป็น Key_Feature
+            db['Key_Feature'] = db['Key_Feature'].astype(str).fillna('ไม่มี')
             
         if db.empty:
             st.warning(f"ไฟล์ '{file_path}' ดูเหมือนจะว่างเปล่า")
@@ -42,7 +40,6 @@ def load_db(file_path):
         st.error(f"มีข้อผิดพลาดในการโหลดไฟล์ '{file_path}': {e}")
         return pd.DataFrame()
 
-# โหลดฐานข้อมูล
 PRODUCT_DB = load_db('products.csv')
 SHADE_DB = load_db('foundation_shades.csv')
 TONE_DB = load_db('skin_tones.csv')
@@ -146,7 +143,6 @@ def predict_skin_condition(cropped_face_rgb):
 def get_skincare_recommendation(user_skin_type, user_acne_score, product_db):
     """Logic การแนะนำ Skincare ตามคะแนนสิว (1-5) ที่ถูก AI จำลองขึ้นมา"""
     
-    # Logic ที่ทำให้คนหน้าใส (1) กับคนเป็นสิวเยอะ (4-5) ได้ผลลัพธ์ต่างกัน
     if user_acne_score <= 1:
         target_ingredients = ['Ceramide', 'Hyaluronic Acid', 'Vitamin C', 'SPF50+']
         recommendation_text = "**ผิวสวยใส** สกินแคร์ควรเน้นการบำรุง เติมความชุ่มชื้น และป้องกันผิวจากแสงแดดเป็นหลัก (Sunscreen/Moisturizer)"
@@ -167,12 +163,10 @@ def get_skincare_recommendation(user_skin_type, user_acne_score, product_db):
         target_ingredients = ['Hyaluronic Acid', 'Glycerin']
         recommendation_text = "ไม่สามารถประเมินสิวได้ แต่เน้นความชุ่มชื้นไว้ก่อน"
         
-    # กรองผลิตภัณฑ์ตามส่วนผสมหลัก
     filtered_products = product_db[
         product_db['Key_Ingredient'].str.contains('|'.join(target_ingredients), case=False, na=False)
     ]
     
-    # ปรับการกรองตามประเภทผิว (เดิม)
     if user_skin_type in ['Oily', 'Combination']:
         filtered_products = filtered_products[~filtered_products['Product_Name'].str.contains('Oil|Balm', case=False)]
     elif user_skin_type in ['Dry', 'Sensitive']:
@@ -209,7 +203,6 @@ uploaded_file = st.file_uploader(
 if uploaded_file is not None:
     if DNN_FACE_DETECTOR is not None:
         
-        # 1. วิเคราะห์ภาพ
         uploaded_file.seek(0)
         cropped_face = analyze_and_crop_face(uploaded_file, DNN_FACE_DETECTOR)
 
@@ -220,15 +213,41 @@ if uploaded_file is not None:
                 st.subheader("✅ ใบหน้าส่วนที่ Crop")
                 st.image(cropped_face, caption="ใบหน้าที่ถูก Crop เพื่อวิเคราะห์", use_column_width=True)
                 
-            # 2. ทำนายโทนสีผิว, ประเภทผิว, และคะแนนสิว
             tone_group, undertone, skin_type, ai_acne_score = predict_skin_condition(cropped_face)
 
             with col2:
                 st.subheader("✨ ผลการวิเคราะห์ผิว")
+                
+                # --- NEW: เพิ่มคำอธิบายสำหรับแต่ละผลลัพธ์ ---
+                
                 st.markdown(f"**โทนสีผิวหลัก (Tone Group):** <span style='background-color:#ffe4b5; padding: 4px; border-radius: 5px;'>{tone_group}</span>", unsafe_allow_html=True)
+                st.caption(f"บ่งบอกถึงระดับความเข้มของผิวหน้า เช่น {tone_group} คือโทนผิวสว่าง/กลาง")
+                
                 st.markdown(f"**อันเดอร์โทน (Undertone):** <span style='background-color:#add8e6; padding: 4px; border-radius: 5px;'>{undertone}</span>", unsafe_allow_html=True)
+                if 'Cool' in undertone:
+                    st.caption("ผิวมีแนวโน้มอมชมพู เหมาะกับ Foundation ที่มีเบสสีชมพู/แดง")
+                elif 'Warm' in undertone or 'Olive' in undertone:
+                    st.caption("ผิวมีแนวโน้มอมเหลือง/เขียว เหมาะกับ Foundation ที่มีเบสสีเหลือง/ทอง")
+                else:
+                    st.caption("ผิวสมดุล เหมาะกับ Foundation โทน Neutral")
+                    
                 st.markdown(f"**ประเภทผิว (Skin Type):** <span style='background-color:#90ee90; padding: 4px; border-radius: 5px;'>{skin_type}</span>", unsafe_allow_html=True)
+                if skin_type == 'Oily':
+                    st.caption("ผิวมีน้ำมันมาก ควรเลือกผลิตภัณฑ์ควบคุมความมันและไม่ก่อให้เกิดการอุดตัน")
+                elif skin_type == 'Dry':
+                    st.caption("ผิวขาดความชุ่มชื้น ควรเลือกผลิตภัณฑ์ที่เน้นการเติมน้ำมันและความชุ่มชื้นสูง")
+                else:
+                    st.caption("ประเภทผิวทั่วไป ใช้เป็นเกณฑ์ในการเลือกเนื้อสัมผัสผลิตภัณฑ์")
+
                 st.markdown(f"**คะแนนปัญหาสิว (AI ประเมิน):** <span style='background-color:#f08080; color:white; padding: 4px; border-radius: 5px;'>{ai_acne_score}</span>", unsafe_allow_html=True)
+                if ai_acne_score <= 2:
+                    st.caption("ระดับ 1-2: มีสิวเล็กน้อย เน้นการบำรุงและป้องกัน")
+                elif ai_acne_score <= 3:
+                    st.caption("ระดับ 3: สิวปานกลาง ควรเน้น Treatment ที่มีส่วนผสมช่วยจัดการสิว")
+                else:
+                    st.caption("ระดับ 4-5: สิวอักเสบ/รุนแรง ควรเน้นผลิตภัณฑ์บรรเทาและปรึกษาแพทย์ผิวหนัง")
+                
+                # --- END NEW ---
 
 
             st.markdown("---")
@@ -236,7 +255,6 @@ if uploaded_file is not None:
             # 3. การแนะนำผลิตภัณฑ์
             st.subheader("🛒 ผลิตภัณฑ์แนะนำสำหรับคุณ")
             
-            # Skincare Recommendation (ใช้คะแนนที่ AI วิเคราะห์ได้)
             skincare_recs, skincare_text = get_skincare_recommendation(skin_type, ai_acne_score, PRODUCT_DB)
             st.markdown(f"#### 🧴 Skincare Recommendation: {skincare_text}")
             st.dataframe(skincare_recs[['Product_Name', 'Brand', 'Category', 'Key_Ingredient', 'Price_Range']], hide_index=True, use_container_width=True)
