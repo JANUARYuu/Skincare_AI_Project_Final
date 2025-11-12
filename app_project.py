@@ -1,4 +1,4 @@
-import streamlit as st 
+import streamlit as st
 import pandas as pd
 import numpy as np
 import cv2 
@@ -39,7 +39,7 @@ def load_db(file_path):
 PRODUCT_DB = load_db('products.csv')
 SHADE_DB = load_db('foundation_shades.csv')
 TONE_DB = load_db('skin_tones.csv')
-MAKEUP_DB = load_db('makeup_products.csv')
+MAKEUP_DB = load_db('makeup_products.csv') # แก้ NameError แล้ว
 
 # ----------------------------------------------------------------------
 # โหลด DNN (Deep Learning) Model สำหรับ Face Detection (SSD)
@@ -107,45 +107,13 @@ def analyze_skin_color(image):
     # ช่วงสีแดงเข้ม (H=160 ถึง H=180)
     lower_red2 = np.array([160, 50, 50])
     upper_red2 = np.array([180, 255, 255])
-    def process_and_analyze_image(image):
-    """ตรวจจับใบหน้าด้วย DNN, ตัดภาพเฉพาะใบหน้า **เป็นวงกลม**, และส่งไปวิเคราะห์สี"""
-    # ... (โค้ดส่วนการตรวจจับใบหน้า DNN) ...
-    
-    # ... (โค้ดส่วนการคำนวณ x1, y1, x2, y2) ...
-    
-    # 1. Crop ภาพส่วนใบหน้าออกมาเป็นสี่เหลี่ยมก่อน
-    cropped_face_image = image[y1:y2, x1:x2]
-    
-    # **<<<<<<<<<< โค้ดที่ต้องเพิ่ม: จัดการ 0x0 Error >>>>>>>>>>**
-    # ตรวจสอบว่าภาพที่ Crop มีมิติที่ถูกต้องหรือไม่ (สูง > 0 และ กว้าง > 0)
-    if cropped_face_image.shape[0] == 0 or cropped_face_image.shape[1] == 0:
-        st.warning("⚠️ ข้อผิดพลาดในการ Crop: ขนาดใบหน้าไม่ถูกต้อง หรืออยู่นอกขอบเขตภาพ")
-        # คืนค่าผลลัพธ์จากภาพเต็ม และภาพเต็ม (เพื่อให้แอปฯ ไม่ล่ม)
-        results = analyze_skin_color(image)
-        return results, image
-    # **<<<<<<<<<< สิ้นสุดโค้ดที่ต้องเพิ่ม >>>>>>>>>>**
-    
-    # 2. สร้าง Mask วงกลมบนภาพที่ Crop แล้ว
-    (ch, cw) = cropped_face_image.shape[:2]
-    center = (cw // 2, ch // 2)
-# 1. Crop ภาพส่วนใบหน้าออกมาเป็นสี่เหลี่ยมก่อน
-    cropped_face_image = image[y1:y2, x1:x2]
-    
-    # **เพิ่มการตรวจสอบมิติที่นี่**
-    if cropped_face_image.shape[0] == 0 or cropped_face_image.shape[1] == 0:
-        st.error("⚠️ ข้อผิดพลาด: การ Crop ใบหน้าทำให้ได้ภาพขนาด 0x0 กรุณาลองภาพอื่น")
-        results = analyze_skin_color(image)
-        return results, image
-    
-    # 2. สร้าง Mask วงกลมบนภาพที่ Crop แล้ว
-    (ch, cw) = cropped_face_image.shape[:2]
+
     # สร้าง mask สำหรับรอยแดง
     mask1 = cv2.inRange(hsv_image, lower_red1, upper_red1)
     mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
     redness_mask = mask1 + mask2
     
     # คำนวณเปอร์เซ็นต์ของพื้นที่ผิวที่มีรอยแดง
-    total_pixels = image.shape[0] * image.shape[1]
     # นับเฉพาะส่วนที่ไม่ใช่พื้นหลังสีดำ (ในภาพวงกลม)
     non_black_pixels = np.sum(np.any(image != [0, 0, 0], axis=2)) 
     red_pixels_count = np.sum(redness_mask > 0)
@@ -223,6 +191,12 @@ def process_and_analyze_image(image):
     # 1. Crop ภาพส่วนใบหน้าออกมาเป็นสี่เหลี่ยมก่อน
     cropped_face_image = image[y1:y2, x1:x2]
     
+    # **โค้ดแก้ไข Error 0x0/cv2.error**
+    if cropped_face_image.shape[0] == 0 or cropped_face_image.shape[1] == 0:
+        st.warning("⚠️ ข้อผิดพลาดในการ Crop: ขนาดใบหน้าไม่ถูกต้อง หรืออยู่นอกขอบเขตภาพ")
+        results = analyze_skin_color(image)
+        return results, image
+    
     # 2. สร้าง Mask วงกลมบนภาพที่ Crop แล้ว
     (ch, cw) = cropped_face_image.shape[:2]
     center = (cw // 2, ch // 2)
@@ -242,7 +216,7 @@ def process_and_analyze_image(image):
 
 
 # ----------------------------------------------------------------------
-# 2. ฟังก์ชันแนะนำผลิตภัณฑ์ (Rule-Based Logic) (ไม่มีการเปลี่ยนแปลง)
+# 2. ฟังก์ชันแนะนำผลิตภัณฑ์ (Rule-Based Logic)
 # ----------------------------------------------------------------------
 
 def recommend_skincare(skin_analysis_results, db):
