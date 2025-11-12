@@ -13,7 +13,7 @@ from collections import defaultdict
 # ----------------------------------------------------------------------
 
 # ตั้งค่าหน้าเพจ
-st.set_page_config(layout="wide", page_title="๋JVP FACE Analyzer")
+st.set_page_config(layout="wide", page_title="JVP Face Analyzer")
 
 # ฟังก์ชันโหลดข้อมูล (แก้ไข NameError: เปลี่ยนชื่อจาก load_db_product_data เป็น load_db)
 @st.cache_data
