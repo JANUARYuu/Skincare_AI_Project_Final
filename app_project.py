@@ -48,15 +48,17 @@ PROTOTXT = 'deploy.prototxt'
 CAFFEMODEL = 'res10_300x300_ssd_iter_140000.caffemodel'
 CONFIDENCE_THRESHOLD = 0.7 # ตั้งค่าความมั่นใจในการตรวจจับ (70%)
 
+DNN_FACE_DETECTOR = None
 if not os.path.exists(PROTOTXT) or not os.path.exists(CAFFEMODEL):
     st.error(f"❗ ไม่พบไฟล์โมเดล DNN: '{PROTOTXT}' หรือ '{CAFFEMODEL}' กรุณาวางไฟล์ใน Root Directory")
-    DNN_FACE_DETECTOR = None
+    # DNN_FACE_DETECTOR ยังคงเป็น None
 else:
     try:
+        # โหลดโมเดล
         DNN_FACE_DETECTOR = cv2.dnn.readNetFromCaffe(PROTOTXT, CAFFEMODEL)
     except Exception as e:
-        st.error(f"❗ ข้อผิดพลาดในการโหลดโมเดล DNN: {e}")
-        DNN_FACE_DETECTOR = None
+        st.error(f"❗ ข้อผิดพลาดในการโหลดโมเดล DNN: {e} (อาจเป็นปัญหา System Library) - จะไม่ทำการ Crop ภาพ")
+        # DNN_FACE_DETECTOR ยังคงเป็น None
         
 # ----------------------------------------------------------------------
 # 1. ฟังก์ชันวิเคราะห์สภาพผิวและโทนสีผิวจากภาพ (แกนหลัก)
@@ -111,8 +113,12 @@ def analyze_skin_color(image):
 
 def process_and_analyze_image(image):
     """ตรวจจับใบหน้าด้วย DNN, ตัดภาพเฉพาะใบหน้า, และส่งไปวิเคราะห์สี"""
+    # *** นี่คือส่วนที่ได้รับการยืนยันและแก้ไขล่าสุด ***
     if image is None or DNN_FACE_DETECTOR is None:
-        return None, image # คืนภาพเดิมหากโมเดลไม่มี
+        # กรณีโมเดลโหลดไม่สำเร็จ จะส่งภาพเต็มไปวิเคราะห์ (ซึ่งอาจแม่นยำน้อยลง)
+        st.warning("⚠️ การตรวจจับใบหน้าถูกข้ามไป (โมเดล DNN โหลดไม่สำเร็จ) ประมวลผลภาพเต็ม")
+        results = analyze_skin_color(image)
+        return results, image
 
     (h, w) = image.shape[:2]
     
@@ -132,22 +138,23 @@ def process_and_analyze_image(image):
 
     if best_face_box is None:
         st.warning("⚠️ ไม่พบใบหน้าในภาพ (DNN Detection) กรุณาอัปโหลดภาพที่เห็นใบหน้าชัดเจน")
-        return None, image # คืนภาพต้นฉบับถ้าไม่พบใบหน้า
+        results = analyze_skin_color(image) # วิเคราะห์ภาพเต็ม
+        return results, image # คืนภาพต้นฉบับถ้าไม่พบใบหน้า
     
     x1, y1, x2, y2 = best_face_box
     
-    # ขยายขอบเขตใบหน้าเล็กน้อยเพื่อให้ครอบคลุมผิวมากขึ้น (เหมือนสแกนบัตรประชาชน)
+    # ขยายขอบเขตใบหน้าเล็กน้อยเพื่อให้ครอบคลุมผิวมากขึ้น
     w_face = x2 - x1
     h_face = y2 - y1
-    expand_w = int(w_face * 0.2) # ขยาย 20%
-    expand_h = int(h_face * 0.2) # ขยาย 20%
+    expand_w = int(w_face * 0.2) 
+    expand_h = int(h_face * 0.2) 
     
     x1 = max(0, x1 - expand_w)
     y1 = max(0, y1 - expand_h)
     x2 = min(w, x2 + expand_w)
     y2 = min(h, y2 + expand_h)
 
-    # ทำการ Crop ภาพส่วนใบหน้าออกมาโดยตรง
+    # ทำการ Crop ภาพส่วนใบหน้าออกมา
     cropped_face_image = image[y1:y2, x1:x2]
         
     results = analyze_skin_color(cropped_face_image) # วิเคราะห์จากภาพที่ Crop แล้ว
@@ -283,6 +290,7 @@ def main():
                 file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
                 image = cv2.imdecode(file_bytes, 1)
                 
+                # **เรียกใช้ฟังก์ชันหลักที่ทำการ Crop และ Analyze**
                 results, cropped_face_for_display = process_and_analyze_image(image)
             
             if results:
@@ -295,7 +303,13 @@ def main():
 
         with col1:
             if cropped_face_for_display is not None and cropped_face_for_display.size > 0:
-                st.image(cv2.cvtColor(cropped_face_for_display, cv2.COLOR_BGR2RGB), caption=f"ใบหน้าที่ระบบใช้ในการวิเคราะห์", use_column_width=True)
+                # ตรวจสอบว่าภาพที่แสดงคือภาพที่ถูก Crop แล้วจริงๆ หรือไม่
+                if cropped_face_for_display.shape == image.shape:
+                    caption_text = "ภาพเต็ม (ไม่พบใบหน้า หรือ DNN โหลดไม่ได้)"
+                else:
+                    caption_text = "ใบหน้าที่ระบบใช้ในการวิเคราะห์ (Crop แล้ว)"
+                    
+                st.image(cv2.cvtColor(cropped_face_for_display, cv2.COLOR_BGR2RGB), caption=caption_text, use_column_width=True)
             else:
                 st.caption(f"กำลังรอผลลัพธ์การประมวลผลรูปภาพ หรือไม่พบใบหน้า")
 
