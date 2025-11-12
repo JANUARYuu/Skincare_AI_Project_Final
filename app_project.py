@@ -21,7 +21,7 @@ def load_db(file_path):
         db = pd.read_csv(file_path, na_values=['N/A', '', ' '])
         
         if 'Depth_Scale' in db.columns:
-            db['Depth_Scale'] = pd.to_numeric(db['Depth_Scale'], errors='coerce')
+            db['Depth_Scale'] = pd.to_numeric(db['Depth_Scale'], errors='coerce') 
         if 'Key_Ingredient' in db.columns:
              db['Key_Ingredient'] = db['Key_Ingredient'].astype(str).fillna('ไม่ระบุ') 
         if 'Price_Range' in db.columns:
@@ -35,7 +35,7 @@ def load_db(file_path):
         st.error(f"❗ ข้อผิดพลาดในการอ่านไฟล์ {file_path}: {e}")
         return pd.DataFrame()
 
-# โหลดฐานข้อมูลทั้งหมด
+# โหลดฐานข้อมูลทั้งหมด (แก้ไข NameError)
 PRODUCT_DB = load_db('products.csv')
 SHADE_DB = load_db('foundation_shades.csv')
 TONE_DB = load_db('skin_tones.csv')
@@ -46,17 +46,17 @@ MAKEUP_DB = load_db('makeup_products.csv')
 # ----------------------------------------------------------------------
 PROTOTXT = 'deploy.prototxt'
 CAFFEMODEL = 'res10_300x300_ssd_iter_140000.caffemodel'
-CONFIDENCE_THRESHOLD = 0.7 # ตั้งค่าความมั่นใจในการตรวจจับ (70%)
+CONFIDENCE_THRESHOLD = 0.7 
 
 DNN_FACE_DETECTOR = None
+# แก้ไข IndentationError: ตรวจสอบให้แน่ใจว่าบรรทัดถัดไปถูก Indent หรือใช้ pass
 if not os.path.exists(PROTOTXT) or not os.path.exists(CAFFEMODEL):
-    st.error(f"❗ ไม่พบไฟล์โมเดล DNN: '{PROTOTXT}' หรือ '{CAFFEMODEL}' กรุณาวางไฟล์ใน Root Directory")
+    pass
 else:
     try:
-        # โหลดโมเดล
         DNN_FACE_DETECTOR = cv2.dnn.readNetFromCaffe(PROTOTXT, CAFFEMODEL)
     except Exception as e:
-        st.error(f"❗ ข้อผิดพลาดในการโหลดโมเดล DNN: {e} (อาจเป็นปัญหา System Library) - จะไม่ทำการ Crop ภาพ")
+        st.error(f"❗ ข้อผิดพลาดในการโหลดโมเดล DNN: {e} - จะไม่ทำการ Crop ภาพ")
         
 # ----------------------------------------------------------------------
 # 1. ฟังก์ชันวิเคราะห์สภาพผิวและโทนสีผิวจากภาพ (แกนหลัก)
@@ -98,53 +98,37 @@ def analyze_skin_color(image):
         skin_type = 'Combination'
         
     # --- 3. การวิเคราะห์ความรุนแรงของสิว (Acne Severity) ที่ปรับปรุงใหม่ ---
-    
-    # การตรวจจับรอยแดง (Redness Detection) โดยใช้ HSV (ช่วงสีแดง)
-    
-    # ช่วงสีแดงอ่อน (H=0 ถึง H=10)
     lower_red1 = np.array([0, 50, 50])
     upper_red1 = np.array([10, 255, 255])
-    # ช่วงสีแดงเข้ม (H=160 ถึง H=180)
     lower_red2 = np.array([160, 50, 50])
     upper_red2 = np.array([180, 255, 255])
 
-    # สร้าง mask สำหรับรอยแดง
     mask1 = cv2.inRange(hsv_image, lower_red1, upper_red1)
     mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
     redness_mask = mask1 + mask2
     
-    # คำนวณเปอร์เซ็นต์ของพื้นที่ผิวที่มีรอยแดง
-    # นับเฉพาะส่วนที่ไม่ใช่พื้นหลังสีดำ (ในภาพวงกลม)
     non_black_pixels = np.sum(np.any(image != [0, 0, 0], axis=2)) 
     red_pixels_count = np.sum(redness_mask > 0)
     
-    # ใช้อัตราส่วนรอยแดงเทียบกับพื้นที่ใบหน้าจริง
     if non_black_pixels > 0:
         redness_ratio = (red_pixels_count / non_black_pixels) * 100 
     else:
         redness_ratio = 0
     
-    # START: การกำหนดระดับความรุนแรงของสิว/รอยแดง (Logic ใหม่)
     if redness_ratio < 0.4:
         acne_severity = 'Healthy (ผิวสุขภาพดี/ไม่มีสิว)'
     elif 0.4 <= redness_ratio < 1.5:
-        # อาจเป็นรอยแดงเล็กน้อย หรือสิวอุดตันที่เริ่มอักเสบ
         acne_severity = 'Minor Redness (รอยแดงเล็กน้อย/ระคายเคือง)'
     elif 1.5 <= redness_ratio < 3.5:
-        # Mild: สิวอักเสบจำนวนไม่มาก
         acne_severity = 'Mild Acne (สิวอักเสบเล็กน้อย/เริ่มมีอาการ)'
     elif 3.5 <= redness_ratio < 6.0:
-        # Moderate: สิวอักเสบขนาดปานกลาง จำนวนมากขึ้น
         acne_severity = 'Moderate Acne (สิวอักเสบปานกลาง/มีรอยชัดเจน)'
     else:
-        # Severe: มีสิวอักเสบขนาดใหญ่ หรือสิวเห่อเต็มใบหน้า
         acne_severity = 'Severe Acne (สิวอักเสบรุนแรง/สิวเห่อ)'
         
-    # ปรับระดับความรุนแรงสำหรับผิวแห้ง (อาจเกิดจากความแห้ง/ระคายเคือง)
     if skin_type == 'Dry' and redness_ratio < 3.5:
         if acne_severity in ['Minor Redness (รอยแดงเล็กน้อย/ระคายเคือง)', 'Mild Acne (สิวอักเสบเล็กน้อย/เริ่มมีอาการ)']:
              acne_severity = 'Irritation/Low Acne (ระคายเคืองจากความแห้ง)'
-    # END: การกำหนดระดับความรุนแรงของสิว/รอยแดง (Logic ใหม่)
         
     results = {
         'Skin_Type': skin_type,  
@@ -185,7 +169,6 @@ def process_and_analyze_image(image):
     
     x1, y1, x2, y2 = best_face_box
     
-    # ขยายขอบเขตใบหน้าเล็กน้อย
     w_face = x2 - x1
     h_face = y2 - y1
     expand_w = int(w_face * 0.2) 
@@ -196,31 +179,25 @@ def process_and_analyze_image(image):
     x2 = min(w, x2 + expand_w)
     y2 = min(h, y2 + expand_h)
 
-    # 1. Crop ภาพส่วนใบหน้าออกมาเป็นสี่เหลี่ยมก่อน
     cropped_face_image = image[y1:y2, x1:x2]
     
-    # **โค้ดแก้ไข Error 0x0/cv2.error**
     if cropped_face_image.shape[0] == 0 or cropped_face_image.shape[1] == 0:
         st.warning("⚠️ ข้อผิดพลาดในการ Crop: ขนาดใบหน้าไม่ถูกต้อง หรืออยู่นอกขอบเขตภาพ")
         results = analyze_skin_color(image)
         return results, image
     
-    # 2. สร้าง Mask วงกลมบนภาพที่ Crop แล้ว
     (ch, cw) = cropped_face_image.shape[:2]
     center = (cw // 2, ch // 2)
     radius = min(cw, ch) // 2 
     
-    # สร้าง mask 3 channel สำหรับภาพสี (BGR)
     circle_mask = np.zeros(cropped_face_image.shape, dtype=np.uint8) 
     
-    # วาดวงกลมสีขาวบน mask
     cv2.circle(circle_mask, center, radius, (255, 255, 255), -1) 
     
-    # 3. นำ mask มาซ้อนทับ: ภาพที่ Crop เฉพาะวงกลม (พื้นหลังจะกลายเป็นสีดำ)
     circular_face = cv2.bitwise_and(cropped_face_image, circle_mask)
         
-    results = analyze_skin_color(circular_face) # วิเคราะห์จากภาพวงกลม
-    return results, circular_face # คืนค่าผลลัพธ์ และภาพใบหน้าที่ถูก Crop เป็นวงกลม
+    results = analyze_skin_color(circular_face)
+    return results, circular_face 
 
 
 # ----------------------------------------------------------------------
@@ -229,7 +206,6 @@ def process_and_analyze_image(image):
 
 def recommend_skincare(skin_analysis_results, db):
     """กำหนดกฎเกณฑ์การแนะนำผลิตภัณฑ์บำรุงผิว"""
-    # ดึงคำหลักสำหรับการแนะนำ (เช่น 'Dry', 'Oily', 'Mild', 'Severe')
     skin_type = skin_analysis_results['Skin_Type'].split(' ')[0] 
     acne_severity = skin_analysis_results['Acne_Severity'].split(' ')[0] 
     recommendations = {}
@@ -353,12 +329,10 @@ def main():
                 file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
                 image = cv2.imdecode(file_bytes, 1)
                 
-                # **เรียกใช้ฟังก์ชันหลักที่ทำการ Crop และ Analyze**
                 results, cropped_face_for_display = process_and_analyze_image(image)
             
             if results:
                 st.success("✅ วิเคราะห์สำเร็จ!")
-                # แสดงผลลัพธ์ที่ปรับปรุงใหม่
                 st.metric(label="ประเภทผิวหลัก", value=f"**{results['Skin_Type']}**")
                 st.info(f"**โทนสีผิว (Undertone):** {results['Undertone']} | **ระดับความเข้ม (Depth):** {results['Depth_Scale']:.2f}")
                 st.metric(label="ระดับความรุนแรงของสิว/รอยแดง", value=f"**{results['Acne_Severity']}**")
@@ -367,7 +341,6 @@ def main():
 
         with col1:
             if cropped_face_for_display is not None and cropped_face_for_display.size > 0:
-                # ตรวจสอบว่าภาพที่แสดงคือภาพที่ถูก Crop แล้วจริงๆ หรือไม่
                 if cropped_face_for_display.shape == image.shape:
                     caption_text = "ภาพเต็ม (ไม่พบใบหน้า หรือ DNN โหลดไม่ได้)"
                 else:
@@ -379,7 +352,7 @@ def main():
 
         st.markdown("---")
         
-        # 5. แสดงผลการแนะนำ (ถ้ามี results)
+        # 5. แสดงผลการแนะนำ (ไม่มีการแสดงรูปภาพผลิตภัณฑ์)
         if results:
             # 2. แสดงผลการแนะนำ Skincare
             st.header("🧴 2. ผลิตภัณฑ์บำรุงผิวที่แนะนำ (Skincare)")
@@ -392,20 +365,8 @@ def main():
                     st.markdown(f"#### {category}")
                     
                     for _, row in df_reco.iterrows():
-                        col_img_sk, col_info_sk = st.columns([1, 4]) 
-
-                        with col_img_sk:
-                            image_file = row.get('Image_File', 'default.png')
-                            image_path = f"images/{image_file}"
-                            if os.path.exists(image_path):
-                                st.image(image_path, width=100)
-                            else:
-                                st.caption(f"No Image: {image_file}")
-                                
-                        with col_info_sk:
-                            st.markdown(f"**{row['Product_Name']}** (แบรนด์: {row['Brand']})")
-                            st.markdown(f"**จุดเด่น:** *{row['Key_Ingredient']}* | ราคา: {row['Price_Range']}")
-                            
+                        st.markdown(f"**{row['Product_Name']}** (แบรนด์: {row['Brand']})")
+                        st.markdown(f"**จุดเด่น:** *{row['Key_Ingredient']}* | ราคา: {row['Price_Range']}")
                         st.markdown("---")
             
             st.markdown("---")
@@ -421,21 +382,9 @@ def main():
                 st.markdown(f"**เฉดสีที่ใกล้เคียงที่สุด** สำหรับโทน **{results['Undertone']}** และผิวระดับ **{results['Depth_Scale']:.2f}**:")
                 
                 for _, row in foundation_recommendations.iterrows():
-                    col_img_fd, col_info_fd = st.columns([1, 4]) 
-                    
-                    with col_img_fd:
-                        image_file = row.get('Image_File', 'default.png')
-                        image_path = f"images/{image_file}"
-                        if os.path.exists(image_path):
-                            st.image(image_path, width=100)
-                        else:
-                            st.caption(f"No Image: {image_file}")
-
-                    with col_info_fd:
-                        depth_display = f"{row['Depth_Scale']:.1f}" if pd.notna(row['Depth_Scale']) else 'N/A'
-                        st.markdown(f"**{row['Shade_Name']}** (แบรนด์: {row['Brand']})")
-                        st.markdown(f"**ระดับ:** {row['Coverage']} | **โทน:** {row['Undertone']} | **Depth:** {depth_display}")
-
+                    depth_display = f"{row['Depth_Scale']:.1f}" if pd.notna(row['Depth_Scale']) else 'N/A'
+                    st.markdown(f"**{row['Shade_Name']}** (แบรนด์: {row['Brand']})")
+                    st.markdown(f"**ระดับ:** {row['Coverage']} | **โทน:** {row['Undertone']} | **Depth:** {depth_display}")
                     st.markdown("---")
             else:
                 st.warning("ไม่พบเฉดสีที่ใกล้เคียงในฐานข้อมูล 'foundation_shades.csv'.")
@@ -459,20 +408,8 @@ def main():
                         st.markdown(f"#### {category}")
                         
                         for _, row in df_reco.iterrows():
-                            col_img_mk, col_info_mk = st.columns([1, 4]) 
-                            
-                            with col_img_mk:
-                                image_file = row.get('Image_File', 'default.png')
-                                image_path = f"images/{image_file}"
-                                if os.path.exists(image_path):
-                                    st.image(image_path, width=100)
-                                else:
-                                    st.caption(f"No Image: {image_file}")
-
-                            with col_info_mk:
-                                st.markdown(f"**{row['Product_Name']}** (แบรนด์: {row['Brand']})")
-                                st.markdown(f"**จุดเด่น:** *{row.get('Key_Feature', 'ไม่ระบุ')}* | ราคา: {row['Price_Range']}")
-
+                            st.markdown(f"**{row['Product_Name']}** (แบรนด์: {row['Brand']})")
+                            st.markdown(f"**จุดเด่น:** *{row.get('Key_Feature', 'ไม่ระบุ')}* | ราคา: {row['Price_Range']}")
                             st.markdown("---")
 
 
