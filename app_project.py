@@ -39,7 +39,7 @@ def load_db(file_path):
 PRODUCT_DB = load_db('products.csv')
 SHADE_DB = load_db('foundation_shades.csv')
 TONE_DB = load_db('skin_tones.csv')
-MAKEUP_DB = load_db('makeup_products.csv') # แก้ NameError แล้ว
+MAKEUP_DB = load_db('makeup_products.csv') # แก้ไข NameError แล้ว
 
 # ----------------------------------------------------------------------
 # โหลด DNN (Deep Learning) Model สำหรับ Face Detection (SSD)
@@ -86,42 +86,7 @@ def analyze_skin_color(image):
         undertone = 'Cool' 
     else:
         undertone = 'Neutral' 
-        # ใช้อัตราส่วนรอยแดงเทียบกับพื้นที่ใบหน้าจริง
-    if non_black_pixels > 0:
-        redness_ratio = (red_pixels_count / non_black_pixels) * 100 
-    else:
-        redness_ratio = 0
-    
-    # START: การกำหนดระดับความรุนแรงของสิว/รอยแดง (Logic ใหม่)
-    if redness_ratio < 0.4:
-        acne_severity = 'Healthy (ผิวสุขภาพดี/ไม่มีสิว)'
-    elif 0.4 <= redness_ratio < 1.5:
-        # อาจเป็นรอยแดงเล็กน้อย หรือสิวอุดตันที่เริ่มอักเสบ
-        acne_severity = 'Minor Redness (รอยแดงเล็กน้อย/ระคายเคือง)'
-    elif 1.5 <= redness_ratio < 3.5:
-        # Mild: สิวอักเสบจำนวนไม่มาก
-        acne_severity = 'Mild Acne (สิวอักเสบเล็กน้อย/เริ่มมีอาการ)'
-    elif 3.5 <= redness_ratio < 6.0:
-        # Moderate: สิวอักเสบขนาดปานกลาง จำนวนมากขึ้น
-        acne_severity = 'Moderate Acne (สิวอักเสบปานกลาง/มีรอยชัดเจน)'
-    else:
-        # Severe: มีสิวอักเสบขนาดใหญ่ หรือสิวเห่อเต็มใบหน้า
-        acne_severity = 'Severe Acne (สิวอักเสบรุนแรง/สิวเห่อ)'
         
-    # ปรับระดับความรุนแรงสำหรับผิวแห้ง (อาจเกิดจากความแห้ง/ระคายเคือง)
-    if skin_type == 'Dry' and redness_ratio < 3.5:
-        if acne_severity in ['Minor Redness (รอยแดงเล็กน้อย/ระคายเคือง)', 'Mild Acne (สิวอักเสบเล็กน้อย/เริ่มมีอาการ)']:
-             acne_severity = 'Irritation/Low Acne (ระคายเคืองจากความแห้ง)'
-    # END: การกำหนดระดับความรุนแรงของสิว/รอยแดง (Logic ใหม่)
-        
-    results = {
-        'Skin_Type': skin_type,  
-        'Acne_Severity': acne_severity,
-        'Undertone': undertone,
-        'Depth_Scale': float(depth_scale)
-    }
-    
-    return results
     # --- 2. การกำหนดประเภทผิว (Skin Type) ---
     S = avg_hsv[1]
     
@@ -159,19 +124,27 @@ def analyze_skin_color(image):
     else:
         redness_ratio = 0
     
-    # การกำหนดระดับความรุนแรงตามเปอร์เซ็นต์รอยแดง
-    if redness_ratio < 0.5:
-        acne_severity = 'None/Very Low (ไม่มีรอยแดงชัดเจน)'
-    elif 0.5 <= redness_ratio < 2.0:
-        acne_severity = 'Mild (รอยแดง/สิวเล็กน้อย)'
-    elif 2.0 <= redness_ratio < 4.5:
-        acne_severity = 'Moderate (มีการอักเสบ/รอยแดงชัดเจน)'
+    # START: การกำหนดระดับความรุนแรงของสิว/รอยแดง (Logic ใหม่)
+    if redness_ratio < 0.4:
+        acne_severity = 'Healthy (ผิวสุขภาพดี/ไม่มีสิว)'
+    elif 0.4 <= redness_ratio < 1.5:
+        # อาจเป็นรอยแดงเล็กน้อย หรือสิวอุดตันที่เริ่มอักเสบ
+        acne_severity = 'Minor Redness (รอยแดงเล็กน้อย/ระคายเคือง)'
+    elif 1.5 <= redness_ratio < 3.5:
+        # Mild: สิวอักเสบจำนวนไม่มาก
+        acne_severity = 'Mild Acne (สิวอักเสบเล็กน้อย/เริ่มมีอาการ)'
+    elif 3.5 <= redness_ratio < 6.0:
+        # Moderate: สิวอักเสบขนาดปานกลาง จำนวนมากขึ้น
+        acne_severity = 'Moderate Acne (สิวอักเสบปานกลาง/มีรอยชัดเจน)'
     else:
-        acne_severity = 'Severe (มีการอักเสบรุนแรง/รอยแดงมาก)'
+        # Severe: มีสิวอักเสบขนาดใหญ่ หรือสิวเห่อเต็มใบหน้า
+        acne_severity = 'Severe Acne (สิวอักเสบรุนแรง/สิวเห่อ)'
         
-    # ปรับลดระดับความรุนแรงสำหรับผิวแห้ง (อาจเกิดจากความแห้ง/ระคายเคือง)
-    if skin_type == 'Dry' and redness_ratio < 3.0:
-        acne_severity = 'Low (ระคายเคืองจากความแห้ง)'
+    # ปรับระดับความรุนแรงสำหรับผิวแห้ง (อาจเกิดจากความแห้ง/ระคายเคือง)
+    if skin_type == 'Dry' and redness_ratio < 3.5:
+        if acne_severity in ['Minor Redness (รอยแดงเล็กน้อย/ระคายเคือง)', 'Mild Acne (สิวอักเสบเล็กน้อย/เริ่มมีอาการ)']:
+             acne_severity = 'Irritation/Low Acne (ระคายเคืองจากความแห้ง)'
+    # END: การกำหนดระดับความรุนแรงของสิว/รอยแดง (Logic ใหม่)
         
     results = {
         'Skin_Type': skin_type,  
@@ -256,12 +229,13 @@ def process_and_analyze_image(image):
 
 def recommend_skincare(skin_analysis_results, db):
     """กำหนดกฎเกณฑ์การแนะนำผลิตภัณฑ์บำรุงผิว"""
-    skin_type = skin_analysis_results['Skin_Type'].split(' ')[0] # ใช้คำแรก ('Dry', 'Oily', 'Combination')
-    acne_severity = skin_analysis_results['Acne_Severity'].split(' ')[0] # ใช้คำแรก ('None/Very', 'Mild', 'Moderate', 'Severe', 'Low')
+    # ดึงคำหลักสำหรับการแนะนำ (เช่น 'Dry', 'Oily', 'Mild', 'Severe')
+    skin_type = skin_analysis_results['Skin_Type'].split(' ')[0] 
+    acne_severity = skin_analysis_results['Acne_Severity'].split(' ')[0] 
     recommendations = {}
 
     # 1. Cleanser
-    if skin_type in ['Oily', 'Combination'] and acne_severity not in ['None/Very', 'Low']:
+    if skin_type in ['Oily', 'Combination'] and acne_severity not in ['Healthy', 'Minor', 'Irritation/Low']:
         reco = db[(db['Category'] == 'Cleanser') & (db['Key_Ingredient'].str.contains('Salicylic Acid|BHA', case=False, na=False))].head(1)
     elif skin_type == 'Dry':
         reco = db[(db['Category'] == 'Cleanser') & (db['Key_Ingredient'].str.contains('Ceramide|Glycerin', case=False, na=False))].head(1)
@@ -271,7 +245,7 @@ def recommend_skincare(skin_analysis_results, db):
         recommendations['Step 1: Cleanser (ทำความสะอาด)'] = reco
 
     # 2. Treatment
-    if acne_severity in ['Moderate', 'Severe']:
+    if acne_severity in ['Mild', 'Moderate', 'Severe']:
         reco = db[(db['Key_Ingredient'].str.contains('Niacinamide|Salicylic Acid|Benzoyl Peroxide', case=False, na=False)) & (db['Category'] == 'Treatment')].head(2)
         if not reco.empty:
             recommendations['Step 2: Targeted Treatment (รักษาสิว/ลดรอย)'] = reco
