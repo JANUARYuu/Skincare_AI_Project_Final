@@ -4,17 +4,16 @@ import numpy as np
 import cv2
 import os
 import io
-import random # ต้อง import random ด้วย
-
+import random
 from PIL import Image
-from collections import defaultdict # ต้อง import defaultdict ด้วย
+from collections import defaultdict
 
 # ----------------------------------------------------------------------
 # 1. การโหลดข้อมูลและตั้งค่า
 # ----------------------------------------------------------------------
 
 # ตั้งค่าหน้าเพจ
-st.set_page_config(layout="wide", page_title="AI Skincare & Makeup Advisor: Image-Only Face Analysis")
+st.set_page_config(layout="wide", page_title="๋JVP FACE Analyzer")
 
 # ฟังก์ชันโหลดข้อมูล (แก้ไข NameError: เปลี่ยนชื่อจาก load_db_product_data เป็น load_db)
 @st.cache_data
@@ -31,8 +30,8 @@ def load_db(file_path):
         if 'Key_Ingredient' in db.columns:
             db['Key_Ingredient'] = db['Key_Ingredient'].astype(str).fillna('ไม่มี')
         if 'Key_Feature' in db.columns:
-            db['Key_Feature'] = db['Key_Feature'].astype(str).fillna('ไม่มี')
-
+            db['Key_Feature'] = db['Key_Feature'].astype(str).fillna('ไม่มี') # แก้ไข Key_feature เป็น Key_Feature
+            
         if db.empty:
             st.warning(f"ไฟล์ '{file_path}' ดูเหมือนจะว่างเปล่า")
             return pd.DataFrame()
@@ -43,7 +42,7 @@ def load_db(file_path):
         st.error(f"มีข้อผิดพลาดในการโหลดไฟล์ '{file_path}': {e}")
         return pd.DataFrame()
 
-# โหลดฐานข้อมูล (แก้ไข NameError: เปลี่ยนการเรียกฟังก์ชันเป็น load_db)
+# โหลดฐานข้อมูล
 PRODUCT_DB = load_db('products.csv')
 SHADE_DB = load_db('foundation_shades.csv')
 TONE_DB = load_db('skin_tones.csv')
@@ -60,7 +59,6 @@ CAFFEMODEL = 'res10_300x300_ssd_iter_140000.caffemodel'
 CONFIDENCE_THRESHOLD = 0.7 
 DNN_FACE_DETECTOR = None
 
-# ตรวจสอบความมั่นใจในไฟล์ DNN 
 if not os.path.exists(PROTOTXT) or not os.path.exists(CAFFEMODEL):
     st.error("❗ ไฟล์โมเดล DNN ไม่ครบ: กรุณาอัปโหลด deploy.prototxt และ res10_300x300_ssd_iter_140000.caffemodel")
 else:
@@ -113,10 +111,10 @@ def analyze_and_crop_face(image_file, detector):
     
     return None
 
-def predict_skin_tone_and_type(cropped_face_rgb):
+def predict_skin_condition(cropped_face_rgb):
     """
-    ฟังก์ชันจำลองการทำนายโทนสีผิว, ประเภทผิว และคะแนนสิว (Acne Score) 
-    โดยอิงตามค่าสีเฉลี่ย (แทนการใช้โมเดลสิวจริง)
+    ฟังก์ชันทำนายโทนสีผิว, ประเภทผิว และคะแนนสิว (Acne Score) 
+    โดยจำลองคะแนนสิวตามค่าสีเฉลี่ย
     """
     
     avg_color = np.mean(cropped_face_rgb, axis=(0, 1))
@@ -125,33 +123,30 @@ def predict_skin_tone_and_type(cropped_face_rgb):
     if avg_color[0] > 180 and avg_color[1] > 160 and avg_color[2] > 140:
         tone_group = random.choice(['Fair', 'Light'])
         undertone = random.choice(['Cool-Pink', 'Neutral'])
-        # 2. การจำลองคะแนนสิว: ผิวสีอ่อน มักจะใสกว่า
-        acne_score = random.choice([1, 1, 2, 2, 3]) # คะแนนสิว 1-3
+        acne_score = random.choice([1, 1, 2, 2, 3]) # ผิวสีอ่อน มักมีสิวน้อย (1-3)
     elif avg_color[0] < 120 and avg_color[1] < 100 and avg_color[2] < 90:
         tone_group = random.choice(['Deep', 'Dark'])
         undertone = random.choice(['Warm-Olive', 'Warm'])
-        # 2. การจำลองคะแนนสิว: ผิวสีเข้ม อาจมีปัญหาเม็ดสี/รอยสิวมากกว่า
-        acne_score = random.choice([2, 3, 3, 4, 5]) # คะแนนสิว 2-5
+        acne_score = random.choice([2, 3, 3, 4, 5]) # ผิวสีเข้ม อาจมีปัญหาเม็ดสี/สิวมากกว่า (2-5)
     else:
         tone_group = random.choice(['Medium', 'Tan'])
         undertone = random.choice(['Neutral', 'Warm'])
-        # 2. การจำลองคะแนนสิว: ผิวสีกลางๆ
-        acne_score = random.choice([2, 2, 3, 3, 4]) # คะแนนสิว 2-4
+        acne_score = random.choice([2, 2, 3, 3, 4]) # ผิวสีกลางๆ (2-4)
         
-    # 3. การทำนายประเภทผิว (จำลอง)
+    # 2. การทำนายประเภทผิว (จำลอง)
     skin_type = random.choice(['Oily', 'Combination', 'Normal', 'Dry', 'Sensitive'])
 
-    return tone_group, undertone, skin_type, acne_score # ส่งค่า acne_score ออกมาด้วย
+    return tone_group, undertone, skin_type, acne_score 
+
 
 # ----------------------------------------------------------------------
 # 4. ฟังก์ชันแนะนำผลิตภัณฑ์ (Recommendation Logic)
 # ----------------------------------------------------------------------
 
 def get_skincare_recommendation(user_skin_type, user_acne_score, product_db):
-    """
-    Logic การแนะนำ Skincare ตามคะแนนสิว (1-5) ที่ถูก AI จำลองขึ้นมา
-    """
+    """Logic การแนะนำ Skincare ตามคะแนนสิว (1-5) ที่ถูก AI จำลองขึ้นมา"""
     
+    # Logic ที่ทำให้คนหน้าใส (1) กับคนเป็นสิวเยอะ (4-5) ได้ผลลัพธ์ต่างกัน
     if user_acne_score <= 1:
         target_ingredients = ['Ceramide', 'Hyaluronic Acid', 'Vitamin C', 'SPF50+']
         recommendation_text = "**ผิวสวยใส** สกินแคร์ควรเน้นการบำรุง เติมความชุ่มชื้น และป้องกันผิวจากแสงแดดเป็นหลัก (Sunscreen/Moisturizer)"
@@ -202,14 +197,12 @@ def get_makeup_recommendation(user_undertone, makeup_db):
 # ----------------------------------------------------------------------
 
 st.title("AI Skincare & Makeup Advisor: Image-Only Face Analysis (DNN) 🧖‍♀️💄")
-st.markdown("ระบบวิเคราะห์โทนสีผิวและลักษณะใบหน้า เพื่อแนะนำผลิตภัณฑ์ที่เหมาะสม **(เน้นเฉพาะใบหน้าส่วนที่ Crop แล้ว)**")
-
-# ลบส่วน Input จำลองออกทั้งหมด
+st.markdown("ระบบวิเคราะห์โทนสีผิวและลักษณะใบหน้า เพื่อแนะนำผลิตภัณฑ์ที่เหมาะสม **(การประเมินสิวเป็นแบบจำลองอัตโนมัติจากภาพ)**")
 
 # Upload File Section
 st.subheader("อัปโหลดรูปภาพใบหน้าของคุณ 📸")
 uploaded_file = st.file_uploader(
-    "เคล็ดลับ: เพื่อผลลัพธ์ที่ดีที่สุด ควรใช้ภาพที่เห็นใบหน้าเต็มชัดเจนและอยู่ในแสงธรรมชาติ",
+    "เคล็ดลับ: ใช้ภาพที่เห็นใบหน้าเต็มชัดเจนและอยู่ในแสงธรรมชาติ",
     type=["jpg", "jpeg", "png"]
 )
 
@@ -217,7 +210,7 @@ if uploaded_file is not None:
     if DNN_FACE_DETECTOR is not None:
         
         # 1. วิเคราะห์ภาพ
-        uploaded_file.seek(0) # รีเซ็ต pointer
+        uploaded_file.seek(0)
         cropped_face = analyze_and_crop_face(uploaded_file, DNN_FACE_DETECTOR)
 
         if cropped_face is not None:
@@ -227,8 +220,8 @@ if uploaded_file is not None:
                 st.subheader("✅ ใบหน้าส่วนที่ Crop")
                 st.image(cropped_face, caption="ใบหน้าที่ถูก Crop เพื่อวิเคราะห์", use_column_width=True)
                 
-            # 2. ทำนายโทนสีผิว, ประเภทผิว, และคะแนนสิว (AI วิเคราะห์เอง)
-            tone_group, undertone, skin_type, ai_acne_score = predict_skin_tone_and_type(cropped_face)
+            # 2. ทำนายโทนสีผิว, ประเภทผิว, และคะแนนสิว
+            tone_group, undertone, skin_type, ai_acne_score = predict_skin_condition(cropped_face)
 
             with col2:
                 st.subheader("✨ ผลการวิเคราะห์ผิว")
@@ -243,14 +236,14 @@ if uploaded_file is not None:
             # 3. การแนะนำผลิตภัณฑ์
             st.subheader("🛒 ผลิตภัณฑ์แนะนำสำหรับคุณ")
             
-            # 3.1 Skincare Recommendation (ใช้คะแนนที่ AI วิเคราะห์ได้)
+            # Skincare Recommendation (ใช้คะแนนที่ AI วิเคราะห์ได้)
             skincare_recs, skincare_text = get_skincare_recommendation(skin_type, ai_acne_score, PRODUCT_DB)
             st.markdown(f"#### 🧴 Skincare Recommendation: {skincare_text}")
             st.dataframe(skincare_recs[['Product_Name', 'Brand', 'Category', 'Key_Ingredient', 'Price_Range']], hide_index=True, use_container_width=True)
             
             st.markdown("---")
             
-            # 3.2 Makeup & Foundation Recommendation
+            # Makeup & Foundation Recommendation
             st.subheader("💄 Makeup Recommendation")
             
             col_fd, col_mk = st.columns(2)
