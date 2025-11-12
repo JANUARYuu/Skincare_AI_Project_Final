@@ -1,4 +1,4 @@
-import streamlit as st
+iimport streamlit as st
 import pandas as pd
 import numpy as np
 import cv2 
@@ -39,7 +39,7 @@ def load_db(file_path):
 PRODUCT_DB = load_db('products.csv')
 SHADE_DB = load_db('foundation_shades.csv')
 TONE_DB = load_db('skin_tones.csv')
-MAKEUP_DB = load_db('makeup_products.csv')
+MAKEUP_DB = load_db_product_data('makeup_products.csv')
 
 # ----------------------------------------------------------------------
 # โหลด DNN (Deep Learning) Model สำหรับ Face Detection (SSD)
@@ -63,21 +63,21 @@ else:
 # ----------------------------------------------------------------------
 
 def analyze_skin_color(image):
-    """วิเคราะห์โทนสีและความเข้มของผิวจากภาพที่ถูกตัดเฉพาะส่วนใบหน้าแล้ว"""
+    """วิเคราะห์โทนสีและความเข้มของผิวจากภาพที่ถูกตัดเฉพาะส่วนใบหน้าแล้ว พร้อมวิเคราะห์ความรุนแรงของสิวที่ละเอียดขึ้น"""
     if image is None or image.size == 0:
         return None 
         
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     
+    # คำนวณค่าเฉลี่ย BGR และ HSV ทั่วทั้งภาพ
     avg_bgr = np.mean(image, axis=(0, 1))
     avg_hsv = np.mean(hsv_image, axis=(0, 1))
     
-    # กำหนดความเข้มของผิว (Depth_Scale)
+    # --- 1. การคำนวณพื้นฐาน (Depth และ Undertone) ---
     V = avg_hsv[2]
     depth_scale = 1.0 + (255 - V) / 25.5 
     depth_scale = np.clip(depth_scale, 1.0, 9.0)
     
-    # กำหนดโทนสีผิว (Undertone)
     R, G, B = avg_bgr[2], avg_bgr[1], avg_bgr[0]
 
     if (R > G * 1.05 and G > B * 1.05) or (R + G) / 2 > B * 1.1:
@@ -87,18 +87,57 @@ def analyze_skin_color(image):
     else:
         undertone = 'Neutral' 
         
-    # กำหนดประเภทผิว (Skin Type)
+    # --- 2. การกำหนดประเภทผิว (Skin Type) ---
     S = avg_hsv[1]
     
     if S < 100 and depth_scale < 5.0:
         skin_type = 'Dry' 
-        acne_severity = 'Low'
     elif depth_scale > 5.5 and S > 130:
         skin_type = 'Oily'
-        acne_severity = 'Moderate'
     else:
         skin_type = 'Combination'
-        acne_severity = 'Low'
+        
+    # --- 3. การวิเคราะห์ความรุนแรงของสิว (Acne Severity) ที่ปรับปรุงใหม่ ---
+    
+    # การตรวจจับรอยแดง (Redness Detection) โดยใช้ HSV (ช่วงสีแดง)
+    
+    # ช่วงสีแดงอ่อน (H=0 ถึง H=10)
+    lower_red1 = np.array([0, 50, 50])
+    upper_red1 = np.array([10, 255, 255])
+    # ช่วงสีแดงเข้ม (H=160 ถึง H=180)
+    lower_red2 = np.array([160, 50, 50])
+    upper_red2 = np.array([180, 255, 255])
+
+    # สร้าง mask สำหรับรอยแดง
+    mask1 = cv2.inRange(hsv_image, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
+    redness_mask = mask1 + mask2
+    
+    # คำนวณเปอร์เซ็นต์ของพื้นที่ผิวที่มีรอยแดง
+    total_pixels = image.shape[0] * image.shape[1]
+    # นับเฉพาะส่วนที่ไม่ใช่พื้นหลังสีดำ (ในภาพวงกลม)
+    non_black_pixels = np.sum(np.any(image != [0, 0, 0], axis=2)) 
+    red_pixels_count = np.sum(redness_mask > 0)
+    
+    # ใช้อัตราส่วนรอยแดงเทียบกับพื้นที่ใบหน้าจริง
+    if non_black_pixels > 0:
+        redness_ratio = (red_pixels_count / non_black_pixels) * 100 
+    else:
+        redness_ratio = 0
+    
+    # การกำหนดระดับความรุนแรงตามเปอร์เซ็นต์รอยแดง
+    if redness_ratio < 0.5:
+        acne_severity = 'None/Very Low (ไม่มีรอยแดงชัดเจน)'
+    elif 0.5 <= redness_ratio < 2.0:
+        acne_severity = 'Mild (รอยแดง/สิวเล็กน้อย)'
+    elif 2.0 <= redness_ratio < 4.5:
+        acne_severity = 'Moderate (มีการอักเสบ/รอยแดงชัดเจน)'
+    else:
+        acne_severity = 'Severe (มีการอักเสบรุนแรง/รอยแดงมาก)'
+        
+    # ปรับลดระดับความรุนแรงสำหรับผิวแห้ง (อาจเกิดจากความแห้ง/ระคายเคือง)
+    if skin_type == 'Dry' and redness_ratio < 3.0:
+        acne_severity = 'Low (ระคายเคืองจากความแห้ง)'
         
     results = {
         'Skin_Type': skin_type,  
@@ -177,12 +216,12 @@ def process_and_analyze_image(image):
 
 def recommend_skincare(skin_analysis_results, db):
     """กำหนดกฎเกณฑ์การแนะนำผลิตภัณฑ์บำรุงผิว"""
-    skin_type = skin_analysis_results['Skin_Type']
-    acne_severity = skin_analysis_results['Acne_Severity']
+    skin_type = skin_analysis_results['Skin_Type'].split(' ')[0] # ใช้คำแรก ('Dry', 'Oily', 'Combination')
+    acne_severity = skin_analysis_results['Acne_Severity'].split(' ')[0] # ใช้คำแรก ('None/Very', 'Mild', 'Moderate', 'Severe', 'Low')
     recommendations = {}
 
     # 1. Cleanser
-    if skin_type in ['Oily', 'Combination'] and acne_severity != 'Low':
+    if skin_type in ['Oily', 'Combination'] and acne_severity not in ['None/Very', 'Low']:
         reco = db[(db['Category'] == 'Cleanser') & (db['Key_Ingredient'].str.contains('Salicylic Acid|BHA', case=False, na=False))].head(1)
     elif skin_type == 'Dry':
         reco = db[(db['Category'] == 'Cleanser') & (db['Key_Ingredient'].str.contains('Ceramide|Glycerin', case=False, na=False))].head(1)
@@ -192,7 +231,7 @@ def recommend_skincare(skin_analysis_results, db):
         recommendations['Step 1: Cleanser (ทำความสะอาด)'] = reco
 
     # 2. Treatment
-    if acne_severity == 'Moderate':
+    if acne_severity in ['Moderate', 'Severe']:
         reco = db[(db['Key_Ingredient'].str.contains('Niacinamide|Salicylic Acid|Benzoyl Peroxide', case=False, na=False)) & (db['Category'] == 'Treatment')].head(2)
         if not reco.empty:
             recommendations['Step 2: Targeted Treatment (รักษาสิว/ลดรอย)'] = reco
@@ -305,9 +344,10 @@ def main():
             
             if results:
                 st.success("✅ วิเคราะห์สำเร็จ!")
+                # แสดงผลลัพธ์ที่ปรับปรุงใหม่
                 st.metric(label="ประเภทผิวหลัก", value=f"**{results['Skin_Type']}**")
-                st.metric(label="ระดับความรุนแรงของสิว", value=f"**{results['Acne_Severity']}**")
                 st.info(f"**โทนสีผิว (Undertone):** {results['Undertone']} | **ระดับความเข้ม (Depth):** {results['Depth_Scale']:.2f}")
+                st.metric(label="ระดับความรุนแรงของสิว/รอยแดง", value=f"**{results['Acne_Severity']}**")
             else:
                 st.warning("⚠️ ไม่สามารถวิเคราะห์ได้ (ไม่พบใบหน้า หรือไฟล์มีปัญหา)")
 
