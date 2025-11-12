@@ -51,14 +51,12 @@ CONFIDENCE_THRESHOLD = 0.7 # ตั้งค่าความมั่นใจ
 DNN_FACE_DETECTOR = None
 if not os.path.exists(PROTOTXT) or not os.path.exists(CAFFEMODEL):
     st.error(f"❗ ไม่พบไฟล์โมเดล DNN: '{PROTOTXT}' หรือ '{CAFFEMODEL}' กรุณาวางไฟล์ใน Root Directory")
-    # DNN_FACE_DETECTOR ยังคงเป็น None
 else:
     try:
         # โหลดโมเดล
         DNN_FACE_DETECTOR = cv2.dnn.readNetFromCaffe(PROTOTXT, CAFFEMODEL)
     except Exception as e:
         st.error(f"❗ ข้อผิดพลาดในการโหลดโมเดล DNN: {e} (อาจเป็นปัญหา System Library) - จะไม่ทำการ Crop ภาพ")
-        # DNN_FACE_DETECTOR ยังคงเป็น None
         
 # ----------------------------------------------------------------------
 # 1. ฟังก์ชันวิเคราะห์สภาพผิวและโทนสีผิวจากภาพ (แกนหลัก)
@@ -112,10 +110,8 @@ def analyze_skin_color(image):
     return results
 
 def process_and_analyze_image(image):
-    """ตรวจจับใบหน้าด้วย DNN, ตัดภาพเฉพาะใบหน้า, และส่งไปวิเคราะห์สี"""
-    # *** นี่คือส่วนที่ได้รับการยืนยันและแก้ไขล่าสุด ***
+    """ตรวจจับใบหน้าด้วย DNN, ตัดภาพเฉพาะใบหน้า **เป็นวงกลม**, และส่งไปวิเคราะห์สี"""
     if image is None or DNN_FACE_DETECTOR is None:
-        # กรณีโมเดลโหลดไม่สำเร็จ จะส่งภาพเต็มไปวิเคราะห์ (ซึ่งอาจแม่นยำน้อยลง)
         st.warning("⚠️ การตรวจจับใบหน้าถูกข้ามไป (โมเดล DNN โหลดไม่สำเร็จ) ประมวลผลภาพเต็ม")
         results = analyze_skin_color(image)
         return results, image
@@ -138,12 +134,12 @@ def process_and_analyze_image(image):
 
     if best_face_box is None:
         st.warning("⚠️ ไม่พบใบหน้าในภาพ (DNN Detection) กรุณาอัปโหลดภาพที่เห็นใบหน้าชัดเจน")
-        results = analyze_skin_color(image) # วิเคราะห์ภาพเต็ม
-        return results, image # คืนภาพต้นฉบับถ้าไม่พบใบหน้า
+        results = analyze_skin_color(image)
+        return results, image 
     
     x1, y1, x2, y2 = best_face_box
     
-    # ขยายขอบเขตใบหน้าเล็กน้อยเพื่อให้ครอบคลุมผิวมากขึ้น
+    # ขยายขอบเขตใบหน้าเล็กน้อย
     w_face = x2 - x1
     h_face = y2 - y1
     expand_w = int(w_face * 0.2) 
@@ -154,11 +150,25 @@ def process_and_analyze_image(image):
     x2 = min(w, x2 + expand_w)
     y2 = min(h, y2 + expand_h)
 
-    # ทำการ Crop ภาพส่วนใบหน้าออกมา
+    # 1. Crop ภาพส่วนใบหน้าออกมาเป็นสี่เหลี่ยมก่อน
     cropped_face_image = image[y1:y2, x1:x2]
+    
+    # 2. สร้าง Mask วงกลมบนภาพที่ Crop แล้ว
+    (ch, cw) = cropped_face_image.shape[:2]
+    center = (cw // 2, ch // 2)
+    radius = min(cw, ch) // 2 
+    
+    # สร้าง mask 3 channel สำหรับภาพสี (BGR)
+    circle_mask = np.zeros(cropped_face_image.shape, dtype=np.uint8) 
+    
+    # วาดวงกลมสีขาวบน mask
+    cv2.circle(circle_mask, center, radius, (255, 255, 255), -1) 
+    
+    # 3. นำ mask มาซ้อนทับ: ภาพที่ Crop เฉพาะวงกลม (พื้นหลังจะกลายเป็นสีดำ)
+    circular_face = cv2.bitwise_and(cropped_face_image, circle_mask)
         
-    results = analyze_skin_color(cropped_face_image) # วิเคราะห์จากภาพที่ Crop แล้ว
-    return results, cropped_face_image # คืนค่าผลลัพธ์ และภาพใบหน้าที่ถูก Crop
+    results = analyze_skin_color(circular_face) # วิเคราะห์จากภาพวงกลม
+    return results, circular_face # คืนค่าผลลัพธ์ และภาพใบหน้าที่ถูก Crop เป็นวงกลม
 
 
 # ----------------------------------------------------------------------
@@ -307,7 +317,7 @@ def main():
                 if cropped_face_for_display.shape == image.shape:
                     caption_text = "ภาพเต็ม (ไม่พบใบหน้า หรือ DNN โหลดไม่ได้)"
                 else:
-                    caption_text = "ใบหน้าที่ระบบใช้ในการวิเคราะห์ (Crop แล้ว)"
+                    caption_text = "ใบหน้าที่ระบบใช้ในการวิเคราะห์ (Crop เป็นวงกลม)"
                     
                 st.image(cv2.cvtColor(cropped_face_for_display, cv2.COLOR_BGR2RGB), caption=caption_text, use_column_width=True)
             else:
